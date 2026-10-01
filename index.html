@@ -1,0 +1,989 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CupChess</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<style>:root{
+  --bg:#FCEBF1;--paper:#FFFFFF;--ink:#3B2320;--muted:#86605A;--line:#EDC6D3;
+  --pink:#E2507E;--pink-soft:#F9D3E0;--mint:#3FAE90;--mint-soft:#D3F1E8;--gold:#E7B23B;
+  --sq-l:#F5D7B0;--sq-d:#B87449;--hl:rgba(63,174,144,.55);--last:rgba(231,178,59,.45);--danger:#D93C3C;
+  --badge-bg:#FFFFFF;--piece-ink:#3B2320;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#23161A;--paper:#33232A;--ink:#FBE9EE;--muted:#CFA9B3;--line:#4E3541;
+  --pink:#F06D97;--pink-soft:#4E2A38;--mint:#5CC9AA;--mint-soft:#1F3A33;--gold:#F0C04F;
+  --sq-l:#E9C9A2;--sq-d:#9C6140;--badge-bg:#FFF6F8;color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#23161A;--paper:#33232A;--ink:#FBE9EE;--muted:#CFA9B3;--line:#4E3541;
+  --pink:#F06D97;--pink-soft:#4E2A38;--mint:#5CC9AA;--mint-soft:#1F3A33;--gold:#F0C04F;
+  --sq-l:#E9C9A2;--sq-d:#9C6140;--badge-bg:#FFF6F8;color-scheme:dark;}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);}
+html{scroll-padding-top:env(safe-area-inset-top,0px);}
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 "Zen Maru Gothic",ui-rounded,"Segoe UI",system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+h1,h2,h3,.hand{font-family:"Klee One","Zen Maru Gothic",serif;font-weight:700;line-height:1.1;margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--mint);outline-offset:2px}
+#app{max-width:480px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;position:relative}
+.screen{flex:1;display:flex;flex-direction:column;padding:16px 16px 96px}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.iconbtn{width:44px;height:44px;border-radius:14px;border:2px solid var(--ink);background:var(--paper);display:grid;place-items:center;font-size:20px;flex:none}
+.btn{border:2.5px solid var(--ink);background:var(--pink);color:#fff;border-radius:16px;padding:12px 22px;font-family:"Klee One",serif;font-size:26px;font-weight:700;box-shadow:0 4px 0 var(--ink);transition:transform .08s,box-shadow .08s}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.btn.alt{background:var(--paper);color:var(--ink)}
+.btn.mint{background:var(--mint)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.chip{display:inline-flex;align-items:center;gap:6px;border:2px solid var(--ink);border-radius:999px;padding:4px 12px;background:var(--paper);font-weight:800;font-size:15px;white-space:nowrap}
+.card{background:var(--paper);border:2.5px solid var(--ink);border-radius:20px;padding:16px}
+.muted{color:var(--muted)}
+.row{display:flex;gap:10px;align-items:center}
+.grow{flex:1}
+
+/* nav */
+nav.tabs{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:min(480px,100%);display:flex;gap:10px;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:2px solid var(--line);z-index:5}
+nav.tabs button{flex:1;border:2px solid var(--ink);border-radius:14px;background:var(--paper);padding:8px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:6px}
+nav.tabs button[aria-current="page"]{background:var(--ink);color:var(--bg)}
+
+/* home header */
+.hud{display:flex;align-items:center;gap:12px}
+.hud .avatar{width:58px;height:58px;flex:none;border:2.5px solid var(--ink);border-radius:18px;background:var(--pink-soft);padding:3px}
+.bar{height:12px;border:2px solid var(--ink);border-radius:99px;background:var(--paper);overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--mint);border-radius:99px;transition:width .6s}
+.bar.pink>i{background:var(--pink)}
+.goal{display:flex;align-items:center;gap:12px;margin-top:12px}
+.goal .dots{display:flex;gap:6px}
+.goal .dots span{width:18px;height:18px;border-radius:50%;border:2px solid var(--ink);background:var(--paper)}
+.goal .dots span.on{background:var(--gold)}
+
+/* map */
+.map{position:relative;width:100%;aspect-ratio:3/5.4;margin-top:8px;border:2.5px solid var(--ink);border-radius:24px;background:
+ radial-gradient(circle at 20% 30%,var(--mint-soft) 0 12%,transparent 13%),
+ radial-gradient(circle at 85% 65%,var(--mint-soft) 0 10%,transparent 11%),
+ radial-gradient(circle at 75% 12%,var(--pink-soft) 0 9%,transparent 10%),var(--paper);overflow:hidden}
+.map svg.road{position:absolute;inset:0;width:100%;height:100%}
+.node{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;padding:0;width:96px}
+.node .disc{width:64px;height:64px;border-radius:50%;border:3px solid var(--ink);background:var(--bg);padding:6px;box-shadow:0 4px 0 var(--ink)}
+.node.current .disc{background:var(--gold);animation:bob 1.6s ease-in-out infinite}
+.node.locked{cursor:not-allowed}
+.node.locked .disc{filter:grayscale(1);opacity:.55}
+.node .lab{font-family:"Klee One",serif;font-weight:700;font-size:19px;line-height:1;color:var(--pink);background:var(--paper);padding:0 4px;border-radius:6px;text-align:center}
+.node .vs{font-size:12px;font-weight:800;color:var(--ink);background:var(--paper);padding:0 4px;border-radius:6px}
+.node .stars{font-size:14px;letter-spacing:1px;color:var(--gold);-webkit-text-stroke:.6px var(--ink)}
+.node .lock{position:absolute;top:0;right:12px;font-size:18px}
+@keyframes bob{50%{transform:translateY(-5px)}}
+
+/* story */
+.story{flex:1;display:flex;flex-direction:column;gap:16px;justify-content:center}
+.panel{border:3px solid var(--ink);border-radius:8px;background:var(--paper);aspect-ratio:4/5;display:grid;place-items:center;overflow:hidden;position:relative}
+.panel img{width:100%;height:100%;object-fit:cover}
+.slot{display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--muted);border:2.5px dashed var(--line);border-radius:12px;padding:20px;margin:18px;text-align:center}
+.slot svg{width:96px;height:96px}
+.caption{font-family:"Klee One",serif;font-size:30px;line-height:1.15;text-align:center}
+.pager{display:flex;justify-content:center;gap:6px}
+.pager i{width:10px;height:10px;border-radius:50%;border:2px solid var(--ink)}
+.pager i.on{background:var(--ink)}
+
+/* game */
+.gbar{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.gtitle{flex:1;min-width:0}
+.gtitle .w1{font-family:"Klee One",serif;font-weight:700;font-size:26px;color:var(--accent,var(--pink));line-height:1}
+.gtitle .w2{font-size:13px;font-weight:800}
+.tray{display:flex;align-items:center;gap:2px;min-height:30px;font-size:13px;font-weight:800}
+.tray svg{width:26px;height:26px}
+.tray .who{margin-right:8px;font-family:"Klee One",serif;font-size:22px}
+.boardwrap{position:relative;border:4px solid var(--ink);border-radius:10px;background:var(--frame,#7A4126);padding:6px;box-shadow:0 6px 0 var(--ink)}
+.board{display:grid;grid-template-columns:repeat(8,1fr);aspect-ratio:1;border-radius:4px;overflow:hidden;touch-action:manipulation}
+.sq{position:relative;border:0;padding:0;margin:0;aspect-ratio:1;display:grid;place-items:center}
+.sq.l{background:var(--sq-l)}.sq.d{background:var(--sq-d)}
+.sq.last::before{content:"";position:absolute;inset:0;background:var(--last)}
+.sq.sel::before{content:"";position:absolute;inset:0;background:var(--hl)}
+.sq.hint::before{content:"";position:absolute;inset:0;background:rgba(226,80,126,.45);animation:pulse 1s ease-in-out infinite}
+.sq.check::before{content:"";position:absolute;inset:0;background:radial-gradient(circle,rgba(217,60,60,.85) 0 35%,rgba(217,60,60,0) 70%)}
+.sq .dot{position:absolute;width:28%;height:28%;border-radius:50%;background:rgba(59,35,32,.35);pointer-events:none}
+.sq .ring{position:absolute;inset:6%;border-radius:50%;border:4px solid rgba(59,35,32,.35);pointer-events:none}
+.sq .pc{position:absolute;inset:1%;display:block;z-index:1;pointer-events:none}
+.sq .pc svg,.sq .pc img{width:100%;height:100%;display:block}
+.sq .coord{position:absolute;font-size:10px;font-weight:800;opacity:.6;pointer-events:none}
+.sq .coord.f{right:3px;bottom:1px}.sq .coord.r{left:3px;top:1px}
+.sq.l .coord{color:var(--sq-d)}.sq.d .coord{color:var(--sq-l)}
+.pc.land{animation:land .28s ease-out}
+@keyframes land{0%{transform:scale(1.15) translateY(-6%)}100%{transform:none}}
+@keyframes pulse{50%{opacity:.4}}
+.coach{display:flex;gap:10px;align-items:flex-start;margin:14px 0 10px;min-height:66px}
+.coach .face{width:48px;height:48px;flex:none}
+.bubble{flex:1;background:var(--paper);border:2.5px solid var(--ink);border-radius:16px;border-top-left-radius:4px;padding:8px 12px;font-weight:700;font-size:15px}
+.bubble b{color:var(--pink)}
+.bubble.warn{background:#FFE9B8;color:#3B2320}
+.bubble.good{background:var(--mint-soft)}
+.controls{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.controls button{border:2px solid var(--ink);background:var(--paper);border-radius:14px;padding:8px 4px;font-weight:800;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.controls button span{font-size:20px;line-height:1}
+.controls button[disabled]{opacity:.4;cursor:not-allowed}
+.thinking{position:absolute;inset:auto 0 -2px 0;text-align:center;font-family:"Klee One",serif;font-size:20px}
+
+/* modal */
+.scrim{position:fixed;inset:0;background:rgba(35,22,26,.55);display:grid;place-items:center;padding:16px;z-index:20}
+.modal{width:min(440px,100%);max-height:calc(100% - 32px);overflow:auto;background:var(--paper);border:3px solid var(--ink);border-radius:24px;padding:20px;box-shadow:0 8px 0 var(--ink)}
+.modal h2{font-size:38px;text-align:center}
+.bigstars{display:flex;justify-content:center;gap:8px;font-size:44px;margin:8px 0}
+.bigstars span{color:var(--line);-webkit-text-stroke:1.5px var(--ink)}
+.bigstars span.on{color:var(--gold);animation:starpop .45s ease-out both}
+.bigstars span:nth-child(2).on{animation-delay:.15s}.bigstars span:nth-child(3).on{animation-delay:.3s}
+@keyframes starpop{0%{transform:scale(0) rotate(-40deg)}70%{transform:scale(1.25)}100%{transform:none}}
+.stat{display:flex;justify-content:space-between;padding:6px 0;border-bottom:2px dashed var(--line);font-weight:700}
+.stat:last-child{border-bottom:0}
+.delta.up{color:var(--mint)}.delta.down{color:var(--danger)}
+.unlock{display:flex;align-items:center;gap:12px;background:var(--mint-soft);border:2.5px solid var(--ink);border-radius:16px;padding:10px;margin-top:12px}
+.unlock .thumb{width:56px;height:56px;flex:none}
+.stack{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+
+/* lesson */
+.lesson .pieces{display:flex;justify-content:center;align-items:flex-end;gap:12px;margin:12px 0}
+.lesson .pieces div{width:88px;text-align:center;font-weight:800;font-size:13px}
+.lesson .vsx{font-family:"Klee One",serif;font-size:28px;align-self:center}
+.mini{display:grid;grid-template-columns:repeat(5,1fr);width:150px;margin:6px auto;border:2px solid var(--ink)}
+.mini i{aspect-ratio:1;display:grid;place-items:center;font-style:normal;font-size:12px}
+.mini i:nth-child(odd){background:var(--sq-l)}.mini i:nth-child(even){background:var(--sq-d)}
+.mini i.m::after{content:"";width:40%;height:40%;border-radius:50%;background:var(--pink)}
+.mini i.p svg{width:100%;height:100%}
+
+/* guide */
+.guide{display:grid;grid-template-columns:1fr;gap:10px;margin-top:12px}
+.guide .g{display:flex;gap:10px;align-items:center;border:2px solid var(--line);border-radius:14px;padding:8px}
+.guide .g .pp{display:flex;flex:none}
+.guide .g svg{width:44px;height:44px}
+.guide .g b{font-family:"Klee One",serif;font-size:22px}
+.guide .g p{margin:0;font-size:14px}
+
+/* profile */
+.prof-head{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.prof-head .avatar{width:150px;height:150px}
+.prof-head input{font-family:"Klee One",serif;font-size:34px;font-weight:700;text-align:center;border:0;border-bottom:2.5px dashed var(--line);background:transparent;color:var(--ink);width:min(260px,100%)}
+.bignum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
+.bignum div{background:var(--paper);border:2.5px solid var(--ink);border-radius:16px;padding:10px 6px;text-align:center}
+.bignum b{display:block;font-family:"Klee One",serif;font-size:34px;line-height:1}
+.bignum small{font-weight:800;color:var(--muted)}
+.section{margin-top:18px}
+.section h3{font-size:28px;margin-bottom:8px}
+.collection{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.item{border:2.5px solid var(--ink);background:var(--paper);border-radius:16px;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;font-weight:800;font-size:13px;text-align:center}
+.item svg{width:56px;height:56px}
+.item.locked{border-style:dashed;border-color:var(--line);color:var(--muted)}
+.item.locked svg{filter:grayscale(1) opacity(.4)}
+.item.on{background:var(--mint-soft);box-shadow:0 0 0 3px var(--mint)}
+.item small{font-weight:700;color:var(--muted)}
+.spark{width:100%;height:80px}
+.toggle{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:2px dashed var(--line);font-weight:700}
+.toggle input{width:22px;height:22px;accent-color:var(--pink)}
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:30;overflow:hidden}
+.confetti i{position:absolute;top:-20px;width:12px;height:14px;border-radius:70% 0 70% 0;opacity:.9;animation:fall 1.8s ease-in forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(540deg)}}
+.toast{position:fixed;left:50%;top:calc(16px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:40;background:var(--ink);color:var(--bg);font-weight:800;padding:10px 16px;border-radius:14px}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.confetti{display:none}}
+
+/* ===== Watercolor restyle (from the mood boards) ===== */
+:root{--bg:#F6E7E8;--paper:#FCF8F1;--ink:#4A3640;--muted:#8E7480;--line:#E5CFD3;
+  --pink:#B85C7A;--pink-soft:#F6DCE3;--mint:#6F9A6A;--mint-soft:#E3EED8;--gold:#D9A441;
+  --sq-l:#F7EBCB;--sq-d:#D9A3A9;--hl:rgba(111,154,106,.5);--last:rgba(228,194,122,.5);--danger:#B8455E;--mauve:#A86A86;}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#2A2028;--paper:#382A33;--ink:#F6E7EC;--muted:#CDB1BD;--line:#55404C;--pink:#E28FAA;--pink-soft:#4A3040;--mint-soft:#2E3A2C;}}
+body{background:var(--bg)}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:60;opacity:.18;mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .2 0 0 0 0 .25 0 0 0 -1.2 .9'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E")}
+body[data-art]{background-size:cover;background-position:center;background-attachment:fixed}
+h1,h2,h3,.hand{font-weight:600;letter-spacing:.01em}
+.btn{font-size:20px;font-weight:600;border-width:1.5px;background:var(--pink);color:#FFF8EE;box-shadow:0 3px 0 var(--ink);border-radius:14px}
+.btn.alt{background:var(--paper);color:var(--ink)}
+.card,.modal,.bubble,.iconbtn,.chip,.controls button,nav.tabs button,.item,.bignum div,.unlock,.panel{border-width:1.5px}
+.modal{box-shadow:6px 6px 0 rgba(168,106,134,.35);border-radius:22px}
+.modal h2{font-size:32px}
+.caption{font-size:24px}
+.panel{border-radius:4px;box-shadow:0 10px 26px rgba(74,54,64,.18);aspect-ratio:4/5}
+.boardwrap{border:none;border-radius:6px;padding:9px;background:var(--frame,#8E5F78);box-shadow:0 12px 28px rgba(74,54,64,.28)}
+.board{border-radius:2px;position:relative}
+.board::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.35;mix-blend-mode:multiply;background:inherit}
+.gbar,.tray{background:color-mix(in srgb,var(--paper) 88%,transparent);border-radius:14px;padding:6px 10px}
+.tray{display:inline-flex;align-self:flex-start;margin-bottom:8px}
+.tray .who{font-size:18px}
+.gtitle .w1{font-size:24px}
+.map{border-width:1.5px;border-radius:18px}
+.node .disc{background-size:cover;background-position:center;border-width:2px;box-shadow:0 3px 0 var(--ink)}
+.node.current .disc{box-shadow:0 0 0 4px #E3C27A,0 3px 0 var(--ink)}
+.node .lab{font-size:16px;color:var(--ink);background:color-mix(in srgb,var(--paper) 90%,transparent);padding:1px 6px}
+.node .stars{color:#D9A441}
+.hud .avatar{border-width:1.5px}
+nav.tabs{border-top:1.5px solid var(--line)}
+.sq .dot{background:rgba(74,54,64,.32)}.sq .ring{border-color:rgba(74,54,64,.32)}
+.bubble.warn{background:#FBEBC4}
+body[data-level="road"]{--accent:#A8557A;--sq-l:#F7E8EA;--sq-d:#C99AAE;--frame:#8E5F78}
+body[data-level="farm"]{--accent:#4F7A47;--sq-l:#F6EDCC;--sq-d:#9DB98A;--frame:#7C6A4E}
+body[data-level="market"]{--accent:#B8607E;--sq-l:#FBF3E6;--sq-d:#A8CFC6;--frame:#C08E6A}
+body[data-level="burger"]{--accent:#B5536F;--sq-l:#FBF1DC;--sq-d:#E7A3B3;--frame:#8A5A4A}
+body[data-level="castle"]{--accent:#2E4A8A;--sq-l:#E7EDF8;--sq-d:#8FA5D3;--frame:#2E4A8A}
+body[data-level="haunted"]{--accent:#F4EBD0;--sq-l:#C3B4DD;--sq-d:#6A5893;--frame:#1E1832;
+  --ink:#F6EEFA;--paper:#2E2440;--muted:#C9BAE0;--line:#4A3B66;--bg:#241E3B;--pink-soft:#3A2A55;--mint-soft:#28392F;color:#F6EEFA;color-scheme:dark}
+body[data-level="haunted"] .btn{color:#2E2440;background:#F4EBD0}
+body[data-level="bakery"]{--accent:#B5507A;--sq-l:#FCE6EC;--sq-d:#E7A3B8;--frame:#7A4E4E}
+
+.ic{width:1.35em;height:1.35em;display:inline-block;vertical-align:-.32em;flex:none}
+.ic.big{width:28px;height:28px}
+.controls button span .ic{width:30px;height:30px}
+nav.tabs .ic{width:26px;height:26px}
+.node .stars{display:flex;gap:1px}.node .stars .ic{width:15px;height:15px}
+.node .lock{top:-4px;right:10px}.node .lock .ic{width:24px;height:24px}
+.bigstars span{color:inherit;-webkit-text-stroke:0;display:inline-block}.bigstars .bs{width:52px;height:52px}
+.item small .ic{width:14px;height:14px;vertical-align:-2px}
+</style></head>
+<body><main id="app"></main>
+<script>/* ===== CupChess engine: rules + simple AI ===== */
+const VAL={P:100,N:300,B:320,R:500,Q:900,K:0};
+const N_OFF=[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+const K_OFF=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+const DIAG=[[-1,-1],[-1,1],[1,-1],[1,1]],ORTH=[[-1,0],[1,0],[0,-1],[0,1]];
+const inB=(r,c)=>r>=0&&r<8&&c>=0&&c<8;
+const other=c=>c==='w'?'b':'w';
+function initState(){
+  const back='RNBQKBNR'.split(''),b=new Array(64).fill(null);
+  for(let c=0;c<8;c++){b[c]='b'+back[c];b[8+c]='bP';b[48+c]='wP';b[56+c]='w'+back[c];}
+  return {b,turn:'w',cr:{wK:true,wQ:true,bK:true,bQ:true},ep:-1,half:0};
+}
+function attacked(b,sq,by){
+  const r=sq>>3,c=sq&7,pr=by==='w'?r+1:r-1;
+  for(const dc of[-1,1]) if(inB(pr,c+dc)&&b[pr*8+c+dc]===by+'P') return true;
+  for(const[dr,dc]of N_OFF){const rr=r+dr,cc=c+dc;if(inB(rr,cc)&&b[rr*8+cc]===by+'N')return true;}
+  for(const[dr,dc]of K_OFF){const rr=r+dr,cc=c+dc;if(inB(rr,cc)&&b[rr*8+cc]===by+'K')return true;}
+  for(const[dr,dc]of DIAG){let rr=r+dr,cc=c+dc;while(inB(rr,cc)){const p=b[rr*8+cc];if(p){if(p[0]===by&&(p[1]==='B'||p[1]==='Q'))return true;break;}rr+=dr;cc+=dc;}}
+  for(const[dr,dc]of ORTH){let rr=r+dr,cc=c+dc;while(inB(rr,cc)){const p=b[rr*8+cc];if(p){if(p[0]===by&&(p[1]==='R'||p[1]==='Q'))return true;break;}rr+=dr;cc+=dc;}}
+  return false;
+}
+const kingSq=(b,col)=>b.indexOf(col+'K');
+const inCheck=s=>attacked(s.b,kingSq(s.b,s.turn),other(s.turn));
+function pseudo(s){
+  const b=s.b,me=s.turn,op=other(me),ms=[];
+  for(let sq=0;sq<64;sq++){
+    const p=b[sq];if(!p||p[0]!==me)continue;
+    const t=p[1],r=sq>>3,c=sq&7;
+    if(t==='P'){
+      const d=me==='w'?-1:1,start=me==='w'?6:1,last=me==='w'?0:7,r1=r+d;
+      const push=to=>ms.push((to>>3)===last?{from:sq,to,promo:'Q'}:{from:sq,to});
+      if(inB(r1,c)&&!b[r1*8+c]){push(r1*8+c);if(r===start&&!b[(r+2*d)*8+c])ms.push({from:sq,to:(r+2*d)*8+c,dbl:true});}
+      for(const dc of[-1,1]){const cc=c+dc;if(!inB(r1,cc))continue;const to=r1*8+cc;
+        if(b[to]&&b[to][0]===op)push(to);else if(to===s.ep&&!b[to])ms.push({from:sq,to,ep:true});}
+    }else if(t==='N'||t==='K'){
+      for(const[dr,dc]of(t==='N'?N_OFF:K_OFF)){const rr=r+dr,cc=c+dc;if(!inB(rr,cc))continue;const q=b[rr*8+cc];if(!q||q[0]===op)ms.push({from:sq,to:rr*8+cc});}
+      if(t==='K'){const home=me==='w'?60:4;
+        if(sq===home&&!attacked(b,sq,op)){
+          if(s.cr[me+'K']&&!b[home+1]&&!b[home+2]&&b[home+3]===me+'R'&&!attacked(b,home+1,op)&&!attacked(b,home+2,op))ms.push({from:sq,to:home+2,castle:'K'});
+          if(s.cr[me+'Q']&&!b[home-1]&&!b[home-2]&&!b[home-3]&&b[home-4]===me+'R'&&!attacked(b,home-1,op)&&!attacked(b,home-2,op))ms.push({from:sq,to:home-2,castle:'Q'});
+        }}
+    }else{
+      const dirs=t==='B'?DIAG:t==='R'?ORTH:DIAG.concat(ORTH);
+      for(const[dr,dc]of dirs){let rr=r+dr,cc=c+dc;while(inB(rr,cc)){const q=b[rr*8+cc];if(q){if(q[0]===op)ms.push({from:sq,to:rr*8+cc});break;}ms.push({from:sq,to:rr*8+cc});rr+=dr;cc+=dc;}}
+    }
+  }
+  return ms;
+}
+function make(s,m){
+  const b=s.b.slice(),p=b[m.from],me=s.turn,op=other(me),back=me==='w'?8:-8;
+  const cap=m.ep?b[m.to+back]:b[m.to];
+  b[m.to]=m.promo?me+m.promo:p;b[m.from]=null;
+  if(m.ep)b[m.to+back]=null;
+  if(m.castle==='K'){b[m.to-1]=b[m.to+1];b[m.to+1]=null;}
+  if(m.castle==='Q'){b[m.to+1]=b[m.to-2];b[m.to-2]=null;}
+  const cr={...s.cr};
+  if(p[1]==='K'){cr[me+'K']=false;cr[me+'Q']=false;}
+  for(const[sq,k]of[[63,'wK'],[56,'wQ'],[7,'bK'],[0,'bQ']])if(m.from===sq||m.to===sq)cr[k]=false;
+  return {b,turn:op,cr,ep:m.dbl?(m.from+m.to)/2:-1,half:(p[1]==='P'||cap)?0:s.half+1,cap:cap||null};
+}
+function legal(s){return pseudo(s).filter(m=>{const n=make(s,m);return !attacked(n.b,kingSq(n.b,s.turn),n.turn);});}
+function evalW(b){
+  let sc=0;
+  for(let i=0;i<64;i++){const p=b[i];if(!p)continue;const t=p[1],r=i>>3,c=i&7;let v=VAL[t];
+    const cd=Math.abs(3.5-r)+Math.abs(3.5-c);
+    if(t==='N'||t==='B')v+=(7-cd)*4;
+    else if(t==='P'){const adv=p[0]==='w'?6-r:r-1;v+=adv*6+(c>=2&&c<=5?adv*2:0);}
+    else if(t==='Q')v+=(7-cd);
+    sc+=p[0]==='w'?v:-v;}
+  return sc;
+}
+function insufficient(b){return b.every(p=>!p||p[1]==='K'||p[1]==='N'||p[1]==='B')&&b.filter(p=>p&&p[1]!=='K').length<=1;}
+const order=(s,ms)=>ms.map(m=>[m,(s.b[m.to]?VAL[s.b[m.to][1]]*10-VAL[s.b[m.from][1]]:0)+(m.promo?800:0)]).sort((a,b)=>b[1]-a[1]).map(x=>x[0]);
+let NODES=0;
+function quiesce(s,alpha,beta,qd){
+  NODES++;
+  const stand=(s.turn==='w'?1:-1)*evalW(s.b);
+  if(qd===0)return stand;
+  if(stand>=beta)return stand;
+  if(stand>alpha)alpha=stand;
+  const caps=order(s,legal(s).filter(m=>s.b[m.to]||m.promo));
+  for(const m of caps){const v=-quiesce(make(s,m),-beta,-alpha,qd-1);if(v>=beta)return v;if(v>alpha)alpha=v;}
+  return alpha;
+}
+function search(s,depth,alpha,beta,ply){
+  NODES++;
+  const ms=legal(s);
+  if(!ms.length)return inCheck(s)?-100000+ply:0;
+  if(depth===0)return quiesce(s,alpha,beta,3);
+  for(const m of order(s,ms)){const v=-search(make(s,m),depth-1,-beta,-alpha,ply+1);if(v>alpha)alpha=v;if(alpha>=beta)break;}
+  return alpha;
+}
+function bestMove(s,cfg){
+  const ms=legal(s);if(!ms.length)return null;
+  if(cfg.blunder&&Math.random()<cfg.blunder)return ms[Math.floor(Math.random()*ms.length)];
+  let best=null,bs=-Infinity;
+  for(const m of order(s,ms)){
+    const v=-search(make(s,m),cfg.depth-1,-Infinity,Infinity,1)+(cfg.noise?Math.random()*cfg.noise:0);
+    if(v>bs){bs=v;best=m;}
+  }
+  return best;
+}
+//module.exports={initState,legal,make,bestMove,attacked,inCheck,insufficient,kingSq,other,VAL,get NODES(){return NODES}};
+</script>
+<script>/* =====================================================================
+   YOUR ART GOES HERE
+   Paste a URL or a data: URI (PNG, GIF, WebP or SVG) for any slot.
+   Empty strings fall back to the built-in placeholder drawings.
+   Animated GIF/WebP files play automatically.
+   ===================================================================== */
+const ART = {
+  story: { intro1:'', intro2:'', intro3:'', intro4:'', intro5:'', chapter:'', finale:'', finale2:'', finale3:'', finale4:'', finale5:'', theend:'' },
+  // Pieces: key is "<theme>-<role>", roles K Q R B N P. Example: "rocks-K": "https://…/rock-king.png"
+  pieces: {},
+  avatar: '', // full-body cupcake hero for the profile
+  // Per-level art: bg = full background behind the game (9:16), icon = map stop picture (square)
+  levels: { road:{bg:'',icon:''}, farm:{bg:'',icon:''}, market:{bg:'',icon:''}, burger:{bg:'',icon:''}, castle:{bg:'',icon:''}, haunted:{bg:'',icon:''}, bakery:{bg:'',icon:''} }
+};
+function setLevelStyle(id){
+  const b=document.body;
+  if(!id){delete b.dataset.level;delete b.dataset.art;b.style.backgroundImage='';return;}
+  b.dataset.level=id;const art=ART.levels[id]&&ART.levels[id].bg;
+  b.dataset.art='1';b.style.backgroundImage=art?`url("${art}")`:sceneURI(id);
+}
+
+/* ===== Content ===== */
+const ROLES={
+  K:{name:'King',how:'Moves one square in any direction. Keep it safe: if it gets trapped, the game is over.'},
+  Q:{name:'Queen',how:'Slides any distance straight or diagonally. Your strongest piece.'},
+  R:{name:'Rook',how:'Slides any distance up, down, left or right.'},
+  B:{name:'Bishop',how:'Slides any distance diagonally and stays on one color all game.'},
+  N:{name:'Knight',how:'Jumps in an L: two squares one way, then one sideways. It can hop over pieces.'},
+  P:{name:'Pawn',how:'Steps forward one square (two on its first move) and captures one square diagonally forward. Reach the far side and it becomes a queen.'}
+};
+const GLYPH={K:'\u265A\uFE0E',Q:'\u265B\uFE0E',R:'\u265C\uFE0E',B:'\u265D\uFE0E',N:'\u265E\uFE0E',P:'\u265F\uFE0E'};
+const LEVELS=[
+  {id:'road',place:'Road',theme:'rocks',foes:'rocks',rating:350,ai:{depth:1,noise:260,blunder:.35},x:28,y:86,
+   lesson:{role:'P',title:'Pawns lead the way',tip:'Pawns step forward and capture diagonally. Push your middle pawns first to open paths for everyone else.',mini:{p:[17],m:[12,7]}}},
+  {id:'farm',place:'Farm',theme:'flowers',foes:'flowers',rating:450,ai:{depth:1,noise:160,blunder:.25},x:70,y:75,
+   lesson:{role:'N',title:'Knights hop',tip:'Knights jump in an L and can leap over anything. Bring them out early, toward the middle of the board.',mini:{p:[12],m:[1,3,5,9,15,19,21,23]}}},
+  {id:'market',place:'Market',theme:'figs',foes:'figs',rating:550,ai:{depth:2,noise:120,blunder:.15},x:32,y:62,
+   lesson:{role:'B',title:'Bishops slide diagonally',tip:'Move the pawn in front of a bishop and it can zoom across the board. Each bishop stays on its own color.',mini:{p:[12],m:[0,4,6,8,16,18,20,24]}}},
+  {id:'burger',place:'Burger Shop',theme:'burgers',foes:'burgers',rating:650,ai:{depth:2,noise:60,blunder:.1},x:68,y:48,
+   lesson:{role:'R',title:'Rooks and castling',tip:'Rooks slide in straight lines. Castle early: tap your king, then the square two steps toward a rook. The king hides and the rook wakes up.',mini:{p:[12],m:[2,7,10,11,13,14,17,22]}}},
+  {id:'castle',place:'Castle',theme:'chessmen',foes:'chessmen',rating:800,ai:{depth:2,noise:30,blunder:.05},x:30,y:35,
+   lesson:{role:'Q',title:'The queen and check',tip:'The queen moves like a rook and a bishop together. Attacking the king is called check, and the king must escape right away.',mini:{p:[12],m:[0,2,4,6,7,8,10,11,13,14,16,17,18,22,24]}}},
+  {id:'haunted',place:'Haunted House',theme:'ghosts',foes:'ghosts',rating:950,ai:{depth:3,noise:20,blunder:.02},x:66,y:22,
+   lesson:{role:'K',title:'Checkmate',tip:'Checkmate is check with no way out. Bring two pieces close to the enemy king and work together to box it in.',mini:{p:[12],m:[6,7,8,11,13,16,17,18]}}},
+  {id:'bakery',place:'Puffy Bakery',theme:'donuts',foes:'donuts',rating:1100,ai:{depth:3,noise:0,blunder:0},x:42,y:9,
+   lesson:{role:'K',title:'Put it all together',tip:'Before every move ask: what can my opponent capture? Then look for your own checks and captures.',mini:{p:[12],m:[6,7,8,11,13,16,17,18]}}}
+];
+const FINALE=[
+  {art:'finale',text:'Ding-a-ling! The door of Puffy Bakery swings open.'},
+  {art:'finale2',text:'Baker Bun gasps: “My cupcakes! I thought you were lost on the road!”'},
+  {art:'finale3',text:'One by one, the cupcakes take their places in the window. Everything smells like sugar and warm bread.'},
+  {art:'finale4',text:'Then the bell rings again. The rocks, flowers, figs, burgers, chessmen, ghosts and donuts have all come to visit. Every friend you played is here.'},
+  {art:'finale5',text:'The lanterns glow, every table is full, and the bakery has never been so happy.'},
+  {art:'theend',text:'',cta:'Back to the map'}
+];
+const STORY=[
+  {art:'intro1',text:'Mmm… freshly baked cupcakes! The bakery will be full today.'},
+  {art:'intro2',text:'Let’s package them and deliver.'},
+  {art:'intro3',text:'Vroom vroom…'},
+  {art:'intro4',text:'Bump! A box of cupcakes tumbles off the truck.'},
+  {art:'intro5',text:'To find the bakery, the cupcake box has to get past every obstacle.',cta:'Go!'}
+];
+/* ===== Palette (from the mood boards: dusty rose, mauve, butter, sky, sage, woodblock blue) ===== */
+const INK='#4A3640';
+const FLAVORS={
+  vanilla:{name:'Vanilla',frost:'#F7EBCB',wrap:'#D98FA6',rating:0},
+  strawberry:{name:'Strawberry',frost:'#F2B8C6',wrap:'#C9738F',rating:480},
+  chocolate:{name:'Chocolate',frost:'#9C6B5A',wrap:'#E3C27A',rating:620},
+  blueberry:{name:'Blueberry',frost:'#B9CBEB',wrap:'#7E95CF',rating:780},
+  rainbow:{name:'Rainbow',frost:'url(#rbw)',wrap:'#9DB98A',rating:1050}
+};
+const ACCS={none:{name:'Nothing',rating:0},sprinkles:{name:'Sprinkles',rating:420},chefhat:{name:'Chef hat',rating:550},bow:{name:'Bow',rating:700},glasses:{name:'Star glasses',rating:860},golden:{name:'Golden wrapper',rating:950},crown:{name:'Royal crown',rating:1150}};
+const TIPS=['Before you move, check whether that square is attacked.','Count attackers and defenders before you capture.','Every move, ask: what is my opponent threatening?','Develop knights and bishops before moving the queen out.','A piece in the middle of the board controls more squares.','Castle early to keep your king safe.'];
+
+/* Shared watercolor filters + gradients, injected once into the page */
+document.body.insertAdjacentHTML('afterbegin',`<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<linearGradient id="rbw" x1="0" x2="1"><stop offset="0" stop-color="#F2B8C6"/><stop offset=".35" stop-color="#F4E3A1"/><stop offset=".68" stop-color="#BFDDB0"/><stop offset="1" stop-color="#B9CBEB"/></linearGradient>
+<filter id="wash" x="-15%" y="-15%" width="130%" height="130%"><feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="2" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="3.2" xChannelSelector="R" yChannelSelector="G" result="d"/><feTurbulence type="fractalNoise" baseFrequency=".9" seed="3" result="g"/><feColorMatrix in="g" type="matrix" values="0 0 0 0 .29  0 0 0 0 .21  0 0 0 0 .25  .7 0 0 0 -.28" result="ga"/><feComposite in="ga" in2="d" operator="in" result="gs"/><feMerge><feMergeNode in="d"/><feMergeNode in="gs"/></feMerge></filter>
+</defs></svg>`);
+
+const STROKE=`stroke="${INK}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"`;
+const blush=y=>`<ellipse cx="38.5" cy="${y}" rx="4.6" ry="2.6" fill="#E98FA5" opacity=".6"/><ellipse cx="61.5" cy="${y}" rx="4.6" ry="2.6" fill="#E98FA5" opacity=".6"/>`;
+const sleepy=(y,c=INK)=>`<path d="M41 ${y} Q43.5 ${y+2.6} 46 ${y} M54 ${y} Q56.5 ${y+2.6} 59 ${y}" fill="none" stroke="${c}" stroke-width="1.8" stroke-linecap="round"/><ellipse cx="50" cy="${y+5}" rx="1.8" ry="1.3" fill="#C9566E"/>${blush(y+3)}`;
+const dots=(y,c=INK)=>`<circle cx="44" cy="${y}" r="2" fill="${c}"/><circle cx="56" cy="${y}" r="2" fill="${c}"/><path d="M47.5 ${y+4.5} Q50 ${y+6} 52.5 ${y+4.5}" fill="none" stroke="${c}" stroke-width="1.6" stroke-linecap="round"/>`;
+const BODIES={
+  cupcake:(o)=>{const f=FLAVORS[o.flavor||'vanilla'],wrap=o.golden?'#E3C27A':f.wrap;
+    const spr=o.sprinkles?`<g stroke-width="2.2" stroke-linecap="round"><path d="M37 60l3-2" stroke="#D9566E"/><path d="M58 55l3 2" stroke="#6F9A6A"/><path d="M47 49l2 2" stroke="#5C78B5"/><path d="M63 62l2-2" stroke="#D9A441"/></g>`:'';
+    return `<path d="M31 66 L69 66 L63.5 92 L36.5 92 Z" fill="${wrap}" ${STROKE}/><path d="M41 67 L42.5 91 M50 67 L50 91 M59 67 L57.5 91" stroke="${INK}" stroke-width="1" opacity=".35"/>
+    <path d="M27 66 Q25 58 34 58 Q34 50 43 51 Q46 43 54 45 Q62 44 63 52 Q73 52 73 60 Q75 67 69 67 Z" fill="${f.frost}" ${STROKE}/><path d="M36 57 Q40 54 44 55 M49 48 Q53 46 57 48" fill="none" stroke="#fff" stroke-width="2.2" opacity=".7"/>${spr}${sleepy(75,INK)}`;},
+  rocks:()=>`<path d="M26 92 Q19 74 30 62 Q40 48 56 50 Q74 52 77 70 Q80 88 70 92 Z" fill="#BDB1B6" ${STROKE}/><ellipse cx="42" cy="62" rx="10" ry="5" fill="#DCD2D6" opacity=".8"/><circle cx="68" cy="84" r="3" fill="#9DB98A"/><path d="M63 57 L59 64 L63 68" fill="none" stroke="${INK}" stroke-width="1.4" opacity=".6"/>${dots(73)}`,
+  flowers:()=>`<path d="M35 74 L65 74 L61.5 92 L38.5 92 Z" fill="#9DB98A" ${STROKE}/><rect x="32" y="69" width="36" height="7" rx="3" fill="#B6CDA3" ${STROKE}/>
+    ${[0,72,144,216,288].map(a=>`<ellipse cx="50" cy="48.5" rx="6.5" ry="9" transform="rotate(${a} 50 57)" fill="#F2B6C6" ${STROKE}/>`).join('')}<circle cx="50" cy="57" r="4.5" fill="#E07A98" stroke="${INK}" stroke-width="1.5"/>${sleepy(81,'#fff')}`,
+  figs:()=>`<path d="M50 47 Q56 47 55.5 53 Q71 60 71 76 Q71 92 50 92 Q29 92 29 76 Q29 60 44.5 53 Q44 47 50 47Z" fill="#8E5A7A" ${STROKE}/><ellipse cx="50" cy="78" rx="13" ry="10.5" fill="#E58CA2" stroke="#F6D7C3" stroke-width="2.5"/><g fill="#FBEFD9">${[[45,75],[53,73],[48,81],[56,80],[50,77],[44,82]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="1"/>`).join('')}</g>${dots(63,'#FBEFD9')}`,
+  burgers:()=>`<rect x="30" y="84" width="40" height="8" rx="4" fill="#E9C27E" ${STROKE}/><rect x="28" y="76" width="44" height="8" rx="4" fill="#8A5A4A" ${STROKE}/>
+    <path d="M27 75 L73 75 L68 80 L61 75 L54 80 L47 75 L40 80 L33 75 Z" fill="#F4D78A" ${STROKE}/><path d="M27 72 Q31 77 35 72 Q39 77 43 72 Q47 77 51 72 Q55 77 59 72 Q63 77 67 72 Q71 77 73 72" fill="#A9C98F" ${STROKE}/>
+    <path d="M28 71 Q28 50 50 50 Q72 50 72 71 Z" fill="#EDC889" ${STROKE}/><g fill="#FFF6E4"><ellipse cx="42" cy="56" rx="1.8" ry="1"/><ellipse cx="55" cy="55" rx="1.8" ry="1"/><ellipse cx="62" cy="61" rx="1.8" ry="1"/></g>${sleepy(62)}`,
+  chessmen:()=>`<rect x="28" y="86" width="44" height="6" rx="3" fill="#2E4A8A" ${STROKE}/><path d="M32 86 Q34 80 40 78 L60 78 Q66 80 68 86 Z" fill="#3E5A9A" ${STROKE}/><path d="M42 78 Q44 64 45 55 L55 55 Q56 64 58 78 Z" fill="#3E5A9A" ${STROKE}/><ellipse cx="50" cy="54" rx="11" ry="3.5" fill="#5C78B5" ${STROKE}/><path d="M46 62 Q47 70 46 76" stroke="#A9C4E8" stroke-width="2" opacity=".6" fill="none"/><circle cx="46.5" cy="66" r="1.6" fill="#FBF3E6"/><circle cx="53.5" cy="66" r="1.6" fill="#FBF3E6"/>`,
+  ghosts:()=>`<path d="M28 92 L28 66 Q28 47 50 47 Q72 47 72 66 L72 92 L65 86 L57.5 92 L50 86 L42.5 92 L35 86 Z" fill="#F7F3FA" ${STROKE}/><path d="M33 70 Q34 56 46 52" fill="none" stroke="#D9CCEA" stroke-width="4" opacity=".8"/><ellipse cx="43" cy="66" rx="2.6" ry="3.6" fill="${INK}"/><ellipse cx="57" cy="66" rx="2.6" ry="3.6" fill="${INK}"/>${blush(72)}<ellipse cx="50" cy="77" rx="2.2" ry="2.6" fill="${INK}"/>`,
+  donuts:()=>`<circle cx="50" cy="72" r="14" fill="none" stroke="${INK}" stroke-width="18.5"/><circle cx="50" cy="72" r="14" fill="none" stroke="#D8A574" stroke-width="14.5"/><path d="M36 70 Q38 58 50 57 Q63 57 64 70 Q60 66 57 71 Q53 64 49 70 Q45 65 42 71 Q39 66 36 70Z" fill="#F0A6BC" stroke="${INK}" stroke-width="1.5"/><g stroke-width="2" stroke-linecap="round"><path d="M45 61l2-1" stroke="#B9CBEB"/><path d="M55 62l2 1" stroke="#F4E3A1"/></g>${dots(84)}`
+};
+const THEME_ACCENT={cupcake:'#D9566E',rocks:'#9A8C93',flowers:'#E07A98',figs:'#6E3F5E',burgers:'#D9566E',chessmen:'#5C78B5',ghosts:'#C9B8E6',donuts:'#F0A6BC'};
+const TOPPERS={
+  K:()=>`<path d="M35 50 L35 32 L42.5 40 L50 28 L57.5 40 L65 32 L65 50 Z" fill="#E3C27A" ${STROKE}/><rect x="48" y="12" width="4" height="17" rx="1" fill="#E3C27A" stroke="${INK}" stroke-width="1.6"/><rect x="43" y="16" width="14" height="4" rx="1" fill="#E3C27A" stroke="${INK}" stroke-width="1.6"/>`,
+  Q:()=>`<path d="M33 50 L36 32 L43 42 L50 28 L57 42 L64 32 L67 50 Z" fill="#F2C6D2" ${STROKE}/><circle cx="36" cy="30" r="4" fill="#E3C27A" ${STROKE}/><circle cx="50" cy="25" r="4.5" fill="#E3C27A" ${STROKE}/><circle cx="64" cy="30" r="4" fill="#E3C27A" ${STROKE}/>`,
+  R:()=>`<path d="M37 50 L37 30 L43 30 L43 35 L47.5 35 L47.5 30 L52.5 30 L52.5 35 L57 35 L57 30 L63 30 L63 50 Z" fill="#DCD4E0" ${STROKE}/><path d="M37 42 L63 42 M48 42 L48 50 M54 35 L54 42" stroke="${INK}" stroke-width="1.2" opacity=".45"/>`,
+  B:()=>`<path d="M40 50 Q37 34 50 20 Q63 34 60 50 Z" fill="#A8C9B8" ${STROKE}/><path d="M45 37 L55 29" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/><circle cx="50" cy="18" r="3.6" fill="#A8C9B8" ${STROKE}/>`,
+  N:()=>`<path d="M40 50 L42 36 Q42 22 54 18 L57 11 L60 19 Q69 24 67 34 L59 33 L57 40 L61 50 Z" fill="#FBF3E6" ${STROKE}/><path d="M42 44 L43.5 35 Q43 24 52 19.5 L54 22 Q46 27 47 36 L46 46 Z" fill="${INK}"/><circle cx="57" cy="26" r="1.8" fill="${INK}"/><ellipse cx="62" cy="29" rx="2.5" ry="1.5" fill="#E98FA5" opacity=".6"/>`,
+  P:(theme)=>`<circle cx="50" cy="41" r="7.5" fill="${THEME_ACCENT[theme]}" ${STROKE}/><circle cx="47.5" cy="38.5" r="2" fill="#fff" opacity=".6"/>${theme==='cupcake'?`<path d="M50 34 Q52 27 58 25" fill="none" stroke="#6F9A6A" stroke-width="2.2" stroke-linecap="round"/>`:''}`
+};
+const SCALE={K:1,Q:.97,R:.86,B:.9,N:.9,P:.76};
+function pieceSVG(theme,role,o={}){
+  const key=theme+'-'+role;
+  if(ART.pieces[key]) return `<img src="${ART.pieces[key]}" alt="">`;
+  const badge=o.symbol?`<circle cx="80" cy="85" r="11" fill="#FBF6EE" stroke="${INK}" stroke-width="1.6"/><text x="80" y="90" text-anchor="middle" font-size="15" fill="${INK}" font-family="serif">${GLYPH[role]}</text>`:'';
+  return `<svg viewBox="14 6 78 90" aria-hidden="true"><g filter="url(#wash)" transform="translate(50 95) scale(${SCALE[role]}) translate(-50 -95)">${BODIES[theme](o)}${TOPPERS[role](theme)}</g>${badge}</svg>`;
+}
+const ACC_ART={
+  chefhat:()=>`<path d="M36 46 L36 36 Q26 34 30 24 Q32 16 42 19 Q46 10 56 14 Q66 12 68 22 Q76 28 64 36 L64 46 Z" fill="#FBF6EE" ${STROKE}/><path d="M36 42 L64 42" stroke="${INK}" stroke-width="1.2"/>`,
+  bow:()=>`<path d="M50 45 L36 36 L36 52 Z M50 45 L64 36 L64 52 Z" fill="#E98FA5" ${STROKE}/><circle cx="50" cy="45" r="4" fill="#D98FA6" ${STROKE}/>`,
+  glasses:()=>`<path d="M40 70 l2.5 5 5.5 .8-4 3.9 1 5.5-5-2.6-5 2.6 1-5.5-4-3.9 5.5-.8z M60 70 l2.5 5 5.5 .8-4 3.9 1 5.5-5-2.6-5 2.6 1-5.5-4-3.9 5.5-.8z" fill="#F4E3A1" ${STROKE}/><path d="M45 77 L55 77" stroke="${INK}" stroke-width="1.8"/>`,
+  crown:()=>TOPPERS.K()
+};
+function avatarSVG(p,acc){
+  if(ART.avatar) return `<img src="${ART.avatar}" alt="" style="width:100%;height:100%;object-fit:contain">`;
+  acc=acc||p.acc;
+  const o={flavor:p.flavor,sprinkles:acc==='sprinkles'||p.unlocked.includes('sprinkles'),golden:acc==='golden'};
+  return `<svg viewBox="0 0 100 100" aria-hidden="true"><g filter="url(#wash)" transform="translate(50 98) scale(1.05) translate(-50 -95)">${BODIES.cupcake(o)}${ACC_ART[acc]?ACC_ART[acc]():''}</g></svg>`;
+}
+const coachFace=`<svg class="face" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46" fill="#F6DCE3" stroke="${INK}" stroke-width="2"/><g filter="url(#wash)" transform="translate(50 92) scale(.82) translate(-50 -95)">${ACC_ART.chefhat()}${BODIES.cupcake({flavor:'vanilla'})}</g></svg>`;
+
+/* ===== Painted scenes (all original drawings, styled after the mood boards) ===== */
+const SCN_DEFS=`<defs><filter id="w" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".018" numOctaves="3" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="9"/><feGaussianBlur stdDeviation=".5"/></filter>
+<filter id="soft"><feGaussianBlur stdDeviation="6"/></filter>
+<filter id="g" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".75" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="matrix" values="0 0 0 0 .29  0 0 0 0 .21  0 0 0 0 .25  0 0 0 -1.4 .9"/></filter></defs>`;
+const grain=(w,h)=>`<rect width="${w}" height="${h}" filter="url(#g)" opacity=".22"/>`;
+const cloud=(x,y,s=1)=>`<g transform="translate(${x} ${y}) scale(${s})" filter="url(#w)"><ellipse cx="0" cy="8" rx="46" ry="12" fill="#C9D6EA"/><ellipse cx="-20" cy="0" rx="22" ry="14" fill="#FBF3DF"/><ellipse cx="6" cy="-8" rx="26" ry="18" fill="#FBF3DF"/><ellipse cx="30" cy="2" rx="18" ry="12" fill="#FBF3DF"/></g>`;
+const swallow=(x,y,s=1,c='#2E4A8A')=>`<path transform="translate(${x} ${y}) scale(${s})" d="M-12 -3 Q-5 -7 0 0 Q5 -7 12 -3 Q5 -3 1 3 L4 9 L0 5 L-4 9 L-1 3 Q-5 -3 -12 -3Z" fill="${c}"/>`;
+const perch=(x,y,c='#2E4A8A')=>`<g transform="translate(${x} ${y})" fill="${c}"><ellipse cx="0" cy="-5" rx="3.6" ry="5"/><circle cx="1.5" cy="-10" r="2.6"/><path d="M-2 -1 L-4 7 L0 1Z"/></g>`;
+const blossom=(x,y,s=1,c='#F2B6C6')=>`<g transform="translate(${x} ${y}) scale(${s})">${[0,72,144,216,288].map(a=>`<ellipse cx="0" cy="-6" rx="4.2" ry="6" transform="rotate(${a})" fill="${c}"/>`).join('')}<circle r="2.4" fill="#D9566E"/></g>`;
+const branch=(d,flowers)=>`<g filter="url(#w)"><path d="${d}" fill="none" stroke="#6E4A4A" stroke-width="5" stroke-linecap="round"/>${flowers.map(([x,y,s])=>blossom(x,y,s)).join('')}</g>`;
+const lantern=(x,y,r,c)=>`<g filter="url(#w)"><line x1="${x}" y1="0" x2="${x}" y2="${y-r}" stroke="#8E7480" stroke-width="1.5"/><rect x="${x-r*.35}" y="${y-r-5}" width="${r*.7}" height="6" fill="#C08E6A"/><ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r*1.1}" fill="${c}"/><path d="M${x-r*.5} ${y-r*.9} Q${x-r*.7} ${y} ${x-r*.5} ${y+r*.9} M${x+r*.5} ${y-r*.9} Q${x+r*.7} ${y} ${x+r*.5} ${y+r*.9}" stroke="#fff" stroke-width="1.4" opacity=".5" fill="none"/>${blossom(x-r*.25,y-r*.15,r/22,'#E07A98')}${blossom(x+r*.3,y+r*.4,r/30,'#F4E3A1')}<rect x="${x-r*.35}" y="${y+r*1.05}" width="${r*.7}" height="6" fill="#C08E6A"/><line x1="${x}" y1="${y+r*1.1+6}" x2="${x}" y2="${y+r*1.1+24}" stroke="#D98FA6" stroke-width="3"/></g>`;
+const mountains=(w,y,c1,c2)=>`<g filter="url(#w)"><path d="M0 ${y} L${w*.15} ${y-60} L${w*.28} ${y-25} L${w*.45} ${y-85} L${w*.6} ${y-30} L${w*.78} ${y-70} L${w} ${y-20} L${w} ${y+200} L0 ${y+200}Z" fill="${c1}"/><path d="M0 ${y+30} Q${w*.3} ${y-20} ${w*.55} ${y+20} Q${w*.8} ${y+50} ${w} ${y+10} L${w} ${y+200} L0 ${y+200}Z" fill="${c2}"/></g>`;
+const castleSil=(x,y,s,c)=>`<g transform="translate(${x} ${y}) scale(${s})" fill="${c}" filter="url(#w)"><path d="M-70 0 L-70 -50 L-62 -50 L-62 -44 L-54 -44 L-54 -50 L-46 -50 L-46 -30 L-20 -30 L-20 -80 L-12 -80 L-12 -74 L-4 -74 L-4 -80 L4 -80 L4 -74 L12 -74 L12 -80 L20 -80 L20 -30 L46 -30 L46 -50 L54 -50 L54 -44 L62 -44 L62 -50 L70 -50 L70 0Z"/><path d="M-8 0 L-8 -14 Q0 -24 8 -14 L8 0Z" fill="#E7EDF8"/></g>`;
+const cupcakeMini=(x,y,s,fl='vanilla')=>`<g transform="translate(${x} ${y}) scale(${s}) translate(-50 -70)" filter="url(#wash)">${BODIES.cupcake({flavor:fl})}${TOPPERS.P('cupcake')}</g>`;
+const box=(x,y,s,face=true)=>`<g transform="translate(${x} ${y}) scale(${s})" filter="url(#wash)"><path d="M-50 -20 L50 -20 L50 40 L-50 40Z" fill="#E3C9A4" ${STROKE}/><path d="M-56 -32 L56 -32 L50 -20 L-50 -20Z" fill="#EAD5B5" ${STROKE}/><rect x="-6" y="-32" width="12" height="72" fill="#D98FA6"/><path d="M0 -32 Q-24 -52 -22 -36 Q-20 -28 0 -32 Q20 -28 22 -36 Q24 -52 0 -32Z" fill="#E98FA5" ${STROKE}/>${face?`<path d="M-28 8 Q-24 11 -20 8 M20 8 Q24 11 28 8" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/><ellipse cx="-30" cy="15" rx="6" ry="3.5" fill="#E98FA5" opacity=".6"/><ellipse cx="30" cy="15" rx="6" ry="3.5" fill="#E98FA5" opacity=".6"/><path d="M-4 18 Q0 22 4 18" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>`:''}</g>`;
+const truck=(x,y,s)=>`<g transform="translate(${x} ${y}) scale(${s})" filter="url(#wash)"><rect x="-80" y="-60" width="110" height="60" rx="4" fill="#FBF3E6" ${STROKE}/><text x="-25" y="-24" text-anchor="middle" font-family="Klee One,serif" font-size="15" fill="#C25A7C">cupcakes</text><path d="M30 -45 L58 -45 L72 -22 L72 0 L30 0Z" fill="#D98FA6" ${STROKE}/><path d="M38 -40 L55 -40 L64 -24 L38 -24Z" fill="#B9CBEB" ${STROKE}/><circle cx="-55" cy="2" r="11" fill="#2E4A8A" ${STROKE}/><circle cx="-30" cy="2" r="11" fill="#2E4A8A" ${STROKE}/><circle cx="50" cy="2" r="11" fill="#2E4A8A" ${STROKE}/></g>`;
+const SCENES={
+  road:(w=360,h=640)=>`<linearGradient id="sk" x2="0" y2="1"><stop offset="0" stop-color="#F6D6DC"/><stop offset=".6" stop-color="#E9B8C6"/></linearGradient><rect width="${w}" height="${h}" fill="url(#sk)"/>
+    <g stroke="${INK}" stroke-width="1.2" opacity=".55" fill="none"><path d="M-10 70 Q180 95 370 62"/><path d="M-10 92 Q180 118 370 86"/></g>${[40,70,96,150,210,250,300].map((x,i)=>perch(x,(i%2?92:70)+Math.sin(x/58)*12+10)).join('')}
+    ${swallow(120,140,1.2)}${swallow(250,170,.9)}${swallow(300,128,1)}${mountains(w,h*.55,'#B98AA3','#9E6E8C')}
+    <path filter="url(#w)" d="M${w*.42} ${h*.6} Q${w*.6} ${h*.7} ${w*.35} ${h*.8} Q${w*.1} ${h*.9} ${w*.3} ${h+10} L${w*.75} ${h+10} Q${w*.45} ${h*.9} ${w*.62} ${h*.8} Q${w*.82} ${h*.7} ${w*.46} ${h*.6}Z" fill="#F7E1E6"/><circle cx="${w*.75}" cy="${h*.47}" r="22" fill="#F4E3A1" opacity=".7" filter="url(#soft)"/>`,
+  farm:(w=360,h=640)=>`<linearGradient id="sk" x2="0" y2="1"><stop offset="0" stop-color="#93B4E2"/><stop offset=".7" stop-color="#CFE0F2"/></linearGradient><rect width="${w}" height="${h}" fill="url(#sk)"/>
+    ${cloud(70,80,1.2)}${cloud(260,150,1)}${cloud(120,260,.9)}${cloud(300,330,.7)}
+    <g filter="url(#w)"><path d="M0 ${h*.7} Q60 ${h*.66} 120 ${h*.69} Q200 ${h*.65} 260 ${h*.69} Q320 ${h*.66} ${w} ${h*.69} L${w} ${h} L0 ${h}Z" fill="#5E8A57"/><path d="M0 ${h*.73} L${w} ${h*.72} L${w} ${h} L0 ${h}Z" fill="#A9C98F"/><path d="M0 ${h*.85} Q${w/2} ${h*.8} ${w} ${h*.86} L${w} ${h} L0 ${h}Z" fill="#BFD6A6"/></g>
+    ${[[40,.8],[90,.9],[150,.82],[220,.93],[280,.8],[330,.9],[60,.95],[300,.97]].map(([x,f],i)=>blossom(x,h*f,.7,i%2?'#F2B6C6':'#FBF3DF')).join('')}`,
+  market:(w=360,h=640)=>`<rect width="${w}" height="${h}" fill="#F1E7D8"/><g stroke="#E3D5C0" stroke-width="1">${Array.from({length:40},(_,i)=>`<line x1="0" y1="${i*16}" x2="${w}" y2="${i*16+3}"/>`).join('')}</g>
+    ${lantern(50,70,30,'#B9DCD3')}${lantern(140,110,36,'#F2C6D2')}${lantern(240,60,28,'#F4E3A1')}${lantern(320,120,34,'#B9DCD3')}${lantern(40,h-110,32,'#F2C6D2')}${lantern(300,h-80,30,'#B9DCD3')}`,
+  burger:(w=360,h=640)=>`<rect width="${w}" height="${h}" fill="#B9D08F"/><rect x="${w*.62}" y="0" width="${w*.3}" height="${h}" fill="#FBF3E6" filter="url(#w)"/><circle cx="${w*.8}" cy="${h*.78}" r="${w*.3}" fill="#E9A3B8" filter="url(#w)"/>
+    <g fill="none" stroke="${INK}" stroke-width="1.6" opacity=".7"><path d="M40 90 Q30 40 70 30 Q90 60 60 80"/><path d="M${w*.7} ${h*.62} q30 -20 60 0 q30 20 60 0"/><circle cx="60" cy="${h-100}" r="34"/><path d="M40 ${h-100} h40 M60 ${h-120} v40"/></g>
+    ${swallow(120,h*.2,1.1,'#C25A7C')}`,
+  castle:(w=360,h=640)=>`<rect width="${w}" height="${h}" fill="#DCE6F5"/>${cloud(80,110,1.1)}${cloud(270,70,.9)}${cloud(220,260,.8)}
+    ${swallow(60,200,1)}${swallow(110,170,.8)}${swallow(300,190,1.1)}<path filter="url(#w)" d="M0 ${h*.82} Q${w*.5} ${h*.68} ${w} ${h*.8} L${w} ${h} L0 ${h}Z" fill="#8FA5D3"/>${castleSil(w*.5,h*.75,1.3,'#2E4A8A')}<path filter="url(#w)" d="M0 ${h*.9} Q${w*.4} ${h*.83} ${w} ${h*.9} L${w} ${h} L0 ${h}Z" fill="#3E5A9A"/>`,
+  haunted:(w=360,h=640)=>`<linearGradient id="sk" x2="0" y2="1"><stop offset="0" stop-color="#241E3B"/><stop offset="1" stop-color="#4A3A63"/></linearGradient><rect width="${w}" height="${h}" fill="url(#sk)"/>
+    <circle cx="${w*.78}" cy="90" r="60" fill="#F4EBD0" opacity=".25" filter="url(#soft)"/><circle cx="${w*.78}" cy="90" r="34" fill="#F4EBD0" filter="url(#w)"/>
+    ${Array.from({length:40},(_,i)=>`<circle cx="${(i*97)%w}" cy="${(i*53)%(h*.6)}" r="${i%3?0.9:1.6}" fill="#F4EBD0" opacity=".8"/>`).join('')}
+    <g filter="url(#w)" opacity=".5"><path d="M0 ${h*.7} Q${w*.3} ${h*.66} ${w*.6} ${h*.71} Q${w*.8} ${h*.74} ${w} ${h*.7} L${w} ${h*.76} L0 ${h*.77}Z" fill="#B7A6D4"/><path d="M0 ${h*.88} Q${w*.5} ${h*.83} ${w} ${h*.88} L${w} ${h} L0 ${h}Z" fill="#8F7BB5"/></g>
+    ${[[40,300],[300,420],[90,520],[250,600],[180,240]].map(([x,y])=>blossom(x,y,.6,'#E9C7D6')).join('')}`,
+  bakery:(w=360,h=640)=>`<rect width="${w}" height="${h}" fill="#F6DCE3"/><circle cx="${w*.2}" cy="${h*.85}" r="90" fill="#FBEFF2" filter="url(#soft)"/>
+    ${branch(`M-10 40 Q80 60 150 30 M60 52 Q90 90 130 100 M-10 ${h-60} Q90 ${h-120} 200 ${h-90}`,[[150,30,1.3],[120,45,1],[90,50,1.1],[130,100,1.2],[100,85,.9],[200,h-90,1.3],[150,h-108,1.1],[100,h-110,1],[60,h-95,1.2]])}
+    ${branch(`M${w+10} 200 Q${w-80} 230 ${w-120} 300`,[[w-120,300,1.3],[w-90,260,1],[w-60,235,1.2]])}
+    ${[[200,180,.8],[260,380,.7],[80,300,.6],[300,520,.8]].map(([x,y,s])=>blossom(x,y,s,'#F2B6C6')).join('')}`,
+  map:(w=300,h=540)=>`<linearGradient id="sk" x2="0" y2="1"><stop offset="0" stop-color="#93B4E2"/><stop offset=".45" stop-color="#E9D6E8"/><stop offset=".8" stop-color="#F6DCE3"/><stop offset="1" stop-color="#E9B8C6"/></linearGradient><rect width="${w}" height="${h}" fill="url(#sk)"/>
+    ${cloud(60,50,.8)}${cloud(230,110,.7)}${cloud(80,220,.6)}${swallow(170,70,.8)}${swallow(200,90,.6)}
+    ${mountains(w,h*.62,'#D5B3C8','#C9A0B8')}<path filter="url(#w)" d="M0 ${h*.8} Q${w*.5} ${h*.74} ${w} ${h*.82} L${w} ${h} L0 ${h}Z" fill="#B6CDA3"/>
+    ${branch(`M${w+10} 10 Q${w-60} 30 ${w-90} 70`,[[w-90,70,1.1],[w-60,40,.9],[w-40,25,1]])}`
+};
+const svgDoc=(vb,body,ar='xMidYMid slice')=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" preserveAspectRatio="${ar}">${SCN_DEFS}${body}${grain(...vb.split(' ').slice(2))}</svg>`;
+const _uri={};
+function sceneURI(id){
+  if(_uri[id])return _uri[id];
+  const big=id==='map'?'0 0 300 540':'0 0 360 640';
+  return _uri[id]=`url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgDoc(big,SCENES[id]()))}")`;
+}
+/* Story panels 400x500 */
+const STORY_ART={
+  intro1:()=>`<rect width="400" height="500" fill="#F4E3A1"/><g filter="url(#w)" opacity=".7"><rect x="20" y="40" width="160" height="10" fill="#D8B989"/><rect x="230" y="60" width="150" height="10" fill="#D8B989"/></g>${blossom(60,30,1)}${blossom(300,50,.8)}
+    <g filter="url(#wash)"><rect x="60" y="120" width="280" height="200" rx="14" fill="#C98A86" ${STROKE}/><rect x="90" y="150" width="220" height="110" rx="10" fill="#F2B07A" ${STROKE}/><circle cx="110" cy="290" r="9" fill="#FBF3E6" ${STROKE}/><circle cx="140" cy="290" r="9" fill="#FBF3E6" ${STROKE}/>
+    <rect x="70" y="330" width="260" height="14" rx="4" fill="#9A8C93" ${STROKE}/></g>
+    ${[110,170,230,290].map(x=>cupcakeMini(x,320,.62)).join('')}
+    <g fill="none" stroke="#fff" stroke-width="3" opacity=".8" stroke-linecap="round">${[130,200,270].map(x=>`<path d="M${x} 270 q-10 -12 0 -24 q10 -12 0 -24"/>`).join('')}</g>
+    <g filter="url(#wash)"><g transform="translate(62 350) scale(1 1)"><path d="M-26 160 L-26 30 Q-26 -6 0 -6 Q26 -6 26 30 L26 160Z" fill="#F2B8C6" ${STROKE}/><ellipse cx="30" cy="34" rx="11" ry="18" transform="rotate(25 30 34)" fill="#F2B8C6" ${STROKE}/><rect x="-30" y="110" width="60" height="18" rx="6" fill="#FBF3E6" ${STROKE}/><path d="M-14 20 l6 6 M0 14 l6 6 M-12 50 l6 6 M4 44 l6 6" stroke="#D98FA6" stroke-width="2.4" stroke-linecap="round"/></g><g transform="translate(338 350) scale(-1 1)"><path d="M-26 160 L-26 30 Q-26 -6 0 -6 Q26 -6 26 30 L26 160Z" fill="#F2B8C6" ${STROKE}/><ellipse cx="30" cy="34" rx="11" ry="18" transform="rotate(25 30 34)" fill="#F2B8C6" ${STROKE}/><rect x="-30" y="110" width="60" height="18" rx="6" fill="#FBF3E6" ${STROKE}/><path d="M-14 20 l6 6 M0 14 l6 6 M-12 50 l6 6 M4 44 l6 6" stroke="#D98FA6" stroke-width="2.4" stroke-linecap="round"/></g></g>`,
+  intro2:()=>`<rect width="400" height="500" fill="#E9B8C6"/><g filter="url(#w)"><rect x="0" y="330" width="400" height="170" fill="#D98FA6"/></g>
+    <g filter="url(#wash)"><rect x="50" y="130" width="300" height="230" rx="8" fill="#E3C9A4" ${STROKE}/><rect x="66" y="146" width="268" height="198" fill="#EAD5B5" ${STROKE}/><path d="M155 146 V344 M245 146 V344 M66 245 H334" stroke="${INK}" stroke-width="1.6"/></g>
+    ${[[110,230],[200,230],[290,230],[110,330],[200,330],[290,330]].map(([x,y],i)=>cupcakeMini(x,y,.6,['vanilla','strawberry','chocolate','blueberry','vanilla','strawberry'][i])).join('')}
+    <g filter="url(#wash)"><path d="M200 130 Q160 80 150 110 Q145 132 200 130 Q255 132 250 110 Q240 80 200 130Z" fill="#E98FA5" ${STROKE}/><path d="M190 132 L170 175 M210 132 L230 175" stroke="#D98FA6" stroke-width="10" stroke-linecap="round"/></g>`,
+  intro3:()=>`<linearGradient id="sk" x2="0" y2="1"><stop offset="0" stop-color="#93B4E2"/><stop offset="1" stop-color="#E9D6E8"/></linearGradient><rect width="400" height="500" fill="url(#sk)"/>${cloud(90,70,1)}${cloud(300,110,.8)}
+    ${mountains(400,300,'#B98AA3','#9E6E8C')}<rect y="360" width="400" height="140" fill="#C9B8C0" filter="url(#w)"/><path d="M0 430 H400" stroke="#FBF3E6" stroke-width="6" stroke-dasharray="30 24"/>
+    ${truck(200,395,1.35)}<g stroke="${INK}" stroke-width="2.4" stroke-linecap="round" opacity=".6"><path d="M40 340 H80 M30 360 H70 M45 380 H75"/></g>${swallow(310,190,1)}${swallow(340,210,.8)}`,
+  intro4:()=>`<linearGradient id="sk" x2="0" y2="1"><stop offset="0" stop-color="#F6D6DC"/><stop offset="1" stop-color="#E9B8C6"/></linearGradient><rect width="400" height="500" fill="url(#sk)"/>${mountains(400,260,'#B98AA3','#9E6E8C')}
+    <path filter="url(#w)" d="M170 250 L230 250 L360 500 L40 500Z" fill="#F7E1E6"/>
+    <g filter="url(#wash)"><rect x="150" y="170" width="100" height="80" rx="6" fill="#FBF3E6" ${STROKE}/><rect x="160" y="182" width="80" height="56" fill="none" stroke="${INK}" stroke-width="1.5"/><circle cx="165" cy="252" r="9" fill="#2E4A8A" ${STROKE}/><circle cx="235" cy="252" r="9" fill="#2E4A8A" ${STROKE}/></g>
+    <g transform="rotate(-18 200 360)">${box(200,360,1)}</g><g fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round" opacity=".6"><path d="M130 300 q-14 -10 -6 -24 M270 300 q14 -10 6 -24 M150 430 l-12 8 M250 430 l12 8"/></g>`,
+  intro5:()=>`<linearGradient id="sk" x2="0" y2="1"><stop offset="0" stop-color="#93B4E2"/><stop offset=".7" stop-color="#CFE0F2"/></linearGradient><rect width="400" height="500" fill="url(#sk)"/>${cloud(80,80,1.1)}${cloud(300,140,.9)}
+    <path filter="url(#w)" d="M0 330 Q200 300 400 330 L400 500 L0 500Z" fill="#A9C98F"/><path filter="url(#w)" d="M190 320 Q250 400 160 500 L280 500 Q330 400 215 320Z" fill="#F7E1E6"/>
+    ${box(190,410,.95)}<g filter="url(#wash)"><rect x="300" y="300" width="8" height="90" fill="#8A5A4A"/><path d="M270 300 L360 300 L376 318 L360 336 L270 336Z" fill="#FBF3E6" ${STROKE}/></g><text x="318" y="324" text-anchor="middle" font-family="Klee One,serif" font-size="13" fill="#C25A7C">bakery</text>`,
+  chapter:()=>`<rect width="400" height="500" fill="#F6DCE3"/>${branch('M-10 60 Q120 90 230 40 M90 78 Q130 130 190 140',[[230,40,1.6],[190,55,1.2],[150,70,1.4],[190,140,1.5],[140,115,1.1]])}
+    ${box(200,330,1.3)}<g fill="#E3C27A">${[[90,250],[320,270],[110,400],[300,410],[200,200]].map(([x,y])=>`<path transform="translate(${x} ${y})" d="M0 -10 L3 -3 L10 0 L3 3 L0 10 L-3 3 L-10 0 L-3 -3Z"/>`).join('')}</g>`,
+  finale:()=>`<rect width="400" height="500" fill="#F6DCE3"/>${branch('M410 40 Q300 60 260 110',[[260,110,1.4],[300,70,1.1],[340,55,1.2]])}
+    <g filter="url(#wash)"><rect x="50" y="170" width="300" height="270" fill="#FBF3E6" ${STROKE}/>${Array.from({length:6},(_,i)=>`<path d="M${50+i*50} 150 h50 v34 q-25 16 -50 0z" fill="${i%2?'#FBF3E6':'#D98FA6'}" ${STROKE}/>`).join('')}
+    <rect x="80" y="230" width="140" height="120" fill="#B9CBEB" ${STROKE}/><rect x="245" y="250" width="80" height="190" fill="#C98A86" ${STROKE}/><circle cx="310" cy="350" r="4" fill="#E3C27A"/></g>
+    <text x="200" y="215" text-anchor="middle" font-family="Klee One,serif" font-size="24" fill="#C25A7C">Puffy Bakery</text>
+    ${[110,150,190].map((x,i)=>cupcakeMini(x,338,.48,['strawberry','vanilla','blueberry'][i])).join('')}<rect x="0" y="440" width="400" height="60" fill="#E9B8C6" filter="url(#w)"/>${box(150,450,.55)}`
+};
+
+const bunny=(x,y,s,mood='happy')=>`<g transform="translate(${x} ${y}) scale(${s})" filter="url(#wash)">
+  <path d="M-22 -92 Q-34 -150 -18 -156 Q-6 -150 -10 -94Z" fill="#FBF8F4" ${STROKE}/><path d="M-19 -100 Q-25 -138 -17 -146 Q-12 -138 -14 -100Z" fill="#F2B6C6"/>
+  <path d="M10 -94 Q8 -152 24 -154 Q36 -144 22 -92Z" fill="#FBF8F4" ${STROKE}/><path d="M14 -100 Q14 -138 22 -144 Q27 -134 19 -100Z" fill="#F2B6C6"/>
+  <path d="M-46 60 Q-52 -10 -36 -40 Q-20 -62 0 -62 Q20 -62 36 -40 Q52 -10 46 60Z" fill="#FBF8F4" ${STROKE}/>
+  <path d="M-30 -20 L30 -20 L36 58 L-36 58Z" fill="#D98FA6" ${STROKE}/><path d="M-12 8 L12 8 L12 28 L-12 28Z" fill="none" stroke="#FBF3E6" stroke-width="2.4"/>
+  <ellipse cx="0" cy="-78" rx="34" ry="28" fill="#FBF8F4" ${STROKE}/>
+  <path d="M-26 -100 L-24 -116 Q-34 -122 -28 -134 Q-20 -144 -8 -138 Q0 -150 12 -140 Q26 -142 28 -128 Q34 -118 24 -114 L26 -100Z" fill="#FBF3E6" ${STROKE}/>
+  ${mood==='gasp'?`<circle cx="-12" cy="-80" r="3.4" fill="${INK}"/><circle cx="12" cy="-80" r="3.4" fill="${INK}"/><ellipse cx="0" cy="-64" rx="4" ry="5.5" fill="#C9566E"/>`:`<path d="M-17 -80 Q-12 -75 -7 -80 M7 -80 Q12 -75 17 -80" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/><path d="M-5 -66 Q0 -61 5 -66" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>`}
+  <ellipse cx="-22" cy="-70" rx="7" ry="4" fill="#E98FA5" opacity=".6"/><ellipse cx="22" cy="-70" rx="7" ry="4" fill="#E98FA5" opacity=".6"/><ellipse cx="0" cy="-72" rx="3" ry="2.2" fill="#E07A98"/>
+  ${mood==='gasp'?`<ellipse cx="-44" cy="-50" rx="9" ry="11" fill="#FBF8F4" ${STROKE}/><ellipse cx="44" cy="-50" rx="9" ry="11" fill="#FBF8F4" ${STROKE}/>`:`<ellipse cx="-42" cy="4" rx="9" ry="11" fill="#FBF8F4" ${STROKE}/><ellipse cx="42" cy="4" rx="9" ry="11" fill="#FBF8F4" ${STROKE}/>`}</g>`;
+const placePiece=(theme,role,x,y,sz,o={})=>pieceSVG(theme,role,o).replace('<svg ',`<svg x="${x-sz/2}" y="${y-sz}" width="${sz}" height="${sz}" `);
+const lanternString=(y,cols)=>`<path d="M-10 ${y} Q200 ${y+40} 410 ${y}" fill="none" stroke="${INK}" stroke-width="1.4" opacity=".6"/>${cols.map((c,i)=>{const x=30+i*(340/(cols.length-1));const yy=y+40*(1-Math.pow((x-200)/210,2))*0.95;return `<g filter="url(#w)"><ellipse cx="${x}" cy="${yy+14}" rx="11" ry="13" fill="${c}"/><ellipse cx="${x}" cy="${yy+14}" rx="20" ry="20" fill="#F4E3A1" opacity=".25"/><rect x="${x-5}" y="${yy}" width="10" height="3" fill="#C08E6A"/></g>`;}).join('')}`;
+Object.assign(STORY_ART,{
+  finale2:()=>`<rect width="400" height="500" fill="#F4E3A1"/><g filter="url(#w)" opacity=".6"><rect x="20" y="60" width="140" height="8" fill="#D8B989"/><rect x="250" y="80" width="130" height="8" fill="#D8B989"/></g>
+    ${cupcakeMini(50,60,.35,'strawberry')}${cupcakeMini(90,60,.35,'blueberry')}${cupcakeMini(300,80,.35,'chocolate')}${cupcakeMini(340,80,.35)}
+    ${bunny(150,370,1.2,'gasp')}<g filter="url(#wash)"><rect x="-10" y="380" width="420" height="130" fill="#D98FA6" ${STROKE}/><path d="M-10 400 H410" stroke="#FBF3E6" stroke-width="3" opacity=".6"/></g>
+    <g transform="rotate(6 290 360)">${box(290,355,.95)}</g>
+    <g fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round" opacity=".6"><path d="M96 160 l-12 -10 M104 146 l-6 -14 M204 160 l12 -10 M196 146 l6 -14"/></g>`,
+  finale3:()=>`<rect width="400" height="500" fill="#F6DCE3"/>
+    <g filter="url(#wash)"><rect x="30" y="60" width="340" height="380" rx="10" fill="#C98A86" ${STROKE}/><rect x="46" y="76" width="308" height="348" fill="#E7EDF8" ${STROKE}/>
+    ${[180,290,400].map(y=>`<rect x="46" y="${y}" width="308" height="8" fill="#FBF3E6" ${STROKE}/>`).join('')}</g>
+    ${[['strawberry','vanilla','blueberry','chocolate'],['vanilla','rainbow','strawberry','vanilla'],['chocolate','blueberry','vanilla','rainbow']].map((row,r)=>row.map((f,i)=>cupcakeMini(95+i*70,180+r*110-2,.5,f)).join('')).join('')}
+    <path d="M60 90 L120 400" stroke="#fff" stroke-width="10" opacity=".35"/><path d="M90 90 L140 330" stroke="#fff" stroke-width="4" opacity=".35"/>
+    <g fill="#E3C27A">${[[30,40],[370,50],[20,470],[380,470]].map(([x,y])=>`<path transform="translate(${x} ${y})" d="M0 -10 L3 -3 L10 0 L3 3 L0 10 L-3 3 L-10 0 L-3 -3Z"/>`).join('')}</g>`,
+  finale4:()=>`<linearGradient id="sk" x2="0" y2="1"><stop offset="0" stop-color="#93B4E2"/><stop offset=".8" stop-color="#E9D6E8"/></linearGradient><rect width="400" height="500" fill="url(#sk)"/>${cloud(320,60,.8)}
+    ${branch('M-10 30 Q120 60 220 20 M80 48 Q110 90 160 96',[[220,20,1.3],[180,34,1],[140,45,1.2],[160,96,1.2],[120,80,1]])}
+    <rect y="330" width="400" height="170" fill="#B6CDA3" filter="url(#w)"/>
+    <g filter="url(#wash)"><rect x="20" y="300" width="360" height="22" rx="6" fill="#FBF3E6" ${STROKE}/><path d="M20 322 Q60 334 100 322 Q140 334 180 322 Q220 334 260 322 Q300 334 340 322 Q370 332 380 322" fill="#F2C6D2" ${STROKE}/><rect x="40" y="330" width="8" height="70" fill="#C08E6A"/><rect x="352" y="330" width="8" height="70" fill="#C08E6A"/></g>
+    ${[['rocks',45],['flowers',95],['figs',145],['burgers',195],['chessmen',245],['ghosts',295],['donuts',345]].map(([t,x],i)=>placePiece(t,'K',x,i%2?290:296,68)).join('')}
+    ${[60,130,200,270,340].map((x,i)=>cupcakeMini(x,318,.3,['vanilla','strawberry','blueberry','chocolate','rainbow'][i])).join('')}
+    ${placePiece('cupcake','K',90,470,90,{flavor:'vanilla'})}${box(200,440,.6)}${bunny(310,470,.55)}`,
+  finale5:()=>`<linearGradient id="sk" x2="0" y2="1"><stop offset="0" stop-color="#241E3B"/><stop offset="1" stop-color="#5A4A7A"/></linearGradient><rect width="400" height="500" fill="url(#sk)"/>
+    ${Array.from({length:30},(_,i)=>`<circle cx="${((i*137.5)%380+10).toFixed(1)}" cy="${((i*i*23+i*7)%170+5)}" r="${i%3?0.9:1.6}" fill="#F4EBD0" opacity=".85"/>`).join('')}<circle cx="330" cy="70" r="26" fill="#F4EBD0" filter="url(#w)"/>
+    <g filter="url(#wash)"><rect x="60" y="200" width="280" height="240" fill="#E9D3D8" ${STROKE}/>${Array.from({length:6},(_,i)=>`<path d="M${60+i*46.7} 182 h46.7 v30 q-23.3 14 -46.7 0z" fill="${i%2?'#FBF3E6':'#D98FA6'}" ${STROKE}/>`).join('')}
+    <rect x="85" y="250" width="120" height="100" fill="#F7C97A" ${STROKE}/><rect x="235" y="260" width="80" height="180" fill="#F7C97A" ${STROKE}/></g>
+    <ellipse cx="200" cy="300" rx="190" ry="120" fill="#F4E3A1" opacity=".18" filter="url(#soft)"/>
+    ${[110,150,185].map((x,i)=>cupcakeMini(x,340,.4,['strawberry','vanilla','blueberry'][i])).join('')}
+    ${lanternString(130,['#F2C6D2','#B9DCD3','#F4E3A1','#F2C6D2','#B9DCD3','#F4E3A1','#F2C6D2'])}
+    <rect y="440" width="400" height="60" fill="#3A2F55" filter="url(#w)"/>${placePiece('ghosts','P',40,470,46)}${placePiece('rocks','P',360,470,46)}`,
+  theend:()=>`<rect width="400" height="500" fill="#FBF3E6"/>${branch('M410 20 Q300 40 250 90',[[250,90,1.3],[290,55,1],[330,40,1.2]])}${branch('M-10 470 Q90 430 160 450',[[160,450,1.2],[110,440,1],[60,455,1.1]])}
+    <text x="200" y="150" text-anchor="middle" font-family="Klee One,serif" font-size="54" font-weight="600" fill="#B85C7A">The End</text>
+    <text x="200" y="185" text-anchor="middle" font-family="Klee One,serif" font-size="18" fill="#8E7480">thank you for playing, chess baker</text>
+    ${bunny(140,380,.62)}${box(255,355,.75)}${placePiece('cupcake','K',255,330,70,{flavor:'vanilla'})}`
+});
+function storySVG(key){return `<svg viewBox="0 0 400 500" preserveAspectRatio="xMidYMid slice" style="width:100%;height:100%;display:block" role="img">${SCN_DEFS}${STORY_ART[key]()}${grain(400,500)}</svg>`;}
+
+
+
+/* ===== Hand-painted icons (replace emoji) ===== */
+const IC_S=`stroke="${INK}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"`;
+const ICONS={
+  map:`<path d="M5 10 L14 7 L26 10 L35 7 L35 31 L26 34 L14 31 L5 34Z" fill="#FBF3E6" ${IC_S}/><path d="M14 7 L14 31 L26 34 L26 10Z" fill="#B6CDA3" ${IC_S}/><path d="M9 26 Q13 20 18 23 T30 15" fill="none" stroke="#D98FA6" stroke-width="2" stroke-dasharray="2.5 3"/><path d="M30 9 Q34 9 34 13 Q34 16 30 20 Q26 16 26 13 Q26 9 30 9Z" fill="#D9566E" ${IC_S}/><circle cx="30" cy="13" r="1.4" fill="#FBF3E6"/>`,
+  cupcake:`<g transform="translate(20 40) scale(.42) translate(-50 -94)">${BODIES.cupcake({flavor:'vanilla'})}<circle cx="50" cy="41" r="7.5" fill="#D9566E" ${STROKE}/></g>`,
+  candle:`<path d="M20 4 Q27 12 23 17 Q20 20 17 17 Q13 12 20 4Z" fill="#F4C27A" ${IC_S}/><path d="M20 10 Q22 14 20 16 Q18 14 20 10Z" fill="#E98FA5"/><rect x="14" y="19" width="12" height="17" rx="2" fill="#F2B8C6" ${IC_S}/><path d="M14 24 L26 22 M14 30 L26 28" stroke="#FBF3E6" stroke-width="2"/><ellipse cx="20" cy="36" rx="10" ry="2.5" fill="#E3C27A" ${IC_S}/>`,
+  star:`<path d="M20 4 L24.6 14.2 L35.5 15.3 L27.3 22.6 L29.6 33.4 L20 27.8 L10.4 33.4 L12.7 22.6 L4.5 15.3 L15.4 14.2Z" fill="#E3C27A" ${IC_S}/><path d="M15 17 Q18 14 20 12" stroke="#FBF3E6" stroke-width="2" fill="none" opacity=".8"/>`,
+  starOff:`<path d="M20 4 L24.6 14.2 L35.5 15.3 L27.3 22.6 L29.6 33.4 L20 27.8 L10.4 33.4 L12.7 22.6 L4.5 15.3 L15.4 14.2Z" fill="#FBF3E6" fill-opacity=".7" ${IC_S} stroke-dasharray="3 2.5"/>`,
+  lock:`<path d="M13 18 V12 Q13 5 20 5 Q27 5 27 12 V18" fill="none" stroke="#9A8C93" stroke-width="3.5" stroke-linecap="round"/><path d="M13 18 V12 Q13 5 20 5 Q27 5 27 12 V18" fill="none" stroke="${INK}" stroke-width="1" opacity=".5"/><rect x="8" y="17" width="24" height="18" rx="4" fill="#A86A86" ${IC_S}/><circle cx="20" cy="24.5" r="2.6" fill="${INK}"/><path d="M20 26 L20 30" stroke="${INK}" stroke-width="2.4"/><path d="M11 21 Q12 19 15 19" stroke="#F2C6D2" stroke-width="1.6" fill="none"/>`,
+  lantern:`<line x1="20" y1="1" x2="20" y2="6" stroke="${INK}" stroke-width="1.6"/><circle cx="20" cy="20" r="15" fill="#F4E3A1" opacity=".5"/><rect x="15" y="5" width="10" height="4" rx="1" fill="#C08E6A" ${IC_S}/><ellipse cx="20" cy="20" rx="11" ry="12" fill="#F2C6D2" ${IC_S}/><path d="M14.5 10 Q12 20 14.5 30 M25.5 10 Q28 20 25.5 30" stroke="${INK}" stroke-width="1.2" fill="none" opacity=".5"/><ellipse cx="20" cy="20" rx="4" ry="6" fill="#FBEFC9" opacity=".9"/><rect x="15" y="31" width="10" height="4" rx="1" fill="#C08E6A" ${IC_S}/><path d="M20 35 V39" stroke="#D98FA6" stroke-width="2.4"/>`,
+  undo:`<path d="M30 30 Q34 14 20 11 L12 11" fill="none" stroke="#D98FA6" stroke-width="5" stroke-linecap="round"/><path d="M30 30 Q34 14 20 11 L12 11" fill="none" stroke="${INK}" stroke-width="1.4" opacity=".55"/><path d="M15 4 L6 11 L15 18Z" fill="#D98FA6" ${IC_S}/>`,
+  book:`<path d="M20 10 Q12 6 4 8 L4 32 Q12 30 20 34 Q28 30 36 32 L36 8 Q28 6 20 10Z" fill="#D98FA6" ${IC_S}/><path d="M20 11 Q13 7 6.5 9.5 L6.5 30 Q13 28.5 20 32Z" fill="#FBF3E6" ${IC_S}/><path d="M20 11 Q27 7 33.5 9.5 L33.5 30 Q27 28.5 20 32Z" fill="#FBF3E6" ${IC_S}/><path d="M10 15 L16 16 M10 20 L16 21 M24 16 L30 15 M24 21 L30 20" stroke="#A86A86" stroke-width="1.4"/>`,
+  flag:`<path d="M10 4 L10 37" stroke="#8A5A4A" stroke-width="3" stroke-linecap="round"/><path d="M11 6 Q18 3 23 7 Q28 10 34 7 L34 22 Q28 25 23 21 Q18 17 11 20Z" fill="#FBF3E6" ${IC_S}/><path d="M15 10 Q19 9 22 11" stroke="#E5CFD3" stroke-width="2" fill="none"/>`,
+  back:`<path d="M34 20 Q22 17 9 20" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/><path d="M17 11 L7 20 L17 29" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`
+};
+const icon=(n,cls='ic')=>`<svg class="${cls}" viewBox="0 0 40 40" aria-hidden="true"><g filter="url(#wash)">${ICONS[n]}</g></svg>`;
+const starRow=(n,max=3,cls='ic')=>Array.from({length:max},(_,i)=>icon(i<n?'star':'starOff',cls)).join('');
+/* ===== Profile + storage ===== */
+const today=()=>new Date().toISOString().slice(0,10);
+const blank=()=>({name:'Cupcake',rating:400,best:400,xp:0,games:0,wins:0,losses:0,draws:0,winStreak:0,bestWinStreak:0,dayStreak:0,lastDay:'',todayKey:'',todayGames:0,stars:{},unlocked:['vanilla','none'],flavor:'vanilla',acc:'none',seenIntro:false,history:[400],settings:{dots:true,symbols:true,coach:true},updated:0});
+let P=blank(),dbRef=null,saveT=null;
+try{const raw=localStorage.getItem('cupchess');if(raw)P={...blank(),...JSON.parse(raw)};}catch(e){}
+function save(){
+  P.updated=Date.now();
+  try{localStorage.setItem('cupchess',JSON.stringify(P));}catch(e){}
+  clearTimeout(saveT);saveT=setTimeout(()=>{if(dbRef)dbRef.set(JSON.parse(JSON.stringify(P))).catch(()=>{});},800);
+}
+(async()=>{
+  try{
+    if(!window.claude||!window.claude.use)return;
+    const [db,user]=await Promise.all([claude.use('db'),claude.use('user')]);
+    if(!db||!user)return;const id=await user.id();if(!id)return;
+    dbRef=db.doc('data/users/'+id+'/profile');
+    const snap=await dbRef.get();
+    if(snap.exists){const d=snap.data();if((d.updated||0)>(P.updated||0)){P={...blank(),...d};try{localStorage.setItem('cupchess',JSON.stringify(P));}catch(e){}render();}}
+    else if(P.updated)save();
+  }catch(e){}
+})();
+const xpLevel=xp=>Math.floor(xp/250)+1;
+const unlockedLevel=i=>i===0||(P.stars[LEVELS[i-1].id]||0)>0;
+const currentLevel=()=>{let i=0;while(i<LEVELS.length-1&&unlockedLevel(i+1))i++;return i;};
+function allRewards(){return [...Object.entries(FLAVORS).map(([k,v])=>({id:k,kind:'flavor',...v})),...Object.entries(ACCS).map(([k,v])=>({id:k,kind:'acc',...v}))].filter(r=>r.rating>0).sort((a,b)=>a.rating-b.rating);}
+const nextReward=()=>allRewards().find(r=>!P.unlocked.includes(r.id));
+
+/* ===== Router ===== */
+const app=document.getElementById('app');
+let route=P.seenIntro?'map':'story',storyIdx=0,storyMode='intro';
+function go(r){route=r;render();window.scrollTo(0,0);}
+function render(){
+  document.querySelector('.scrim')?.remove();
+  setLevelStyle(route==='game'&&G?LEVELS[G.lv].id:null);
+  if(route==='story')return renderStory();
+  if(route==='game')return renderGame();
+  if(route==='profile')return renderProfile();
+  return renderMap();
+}
+const tabs=a=>`<nav class="tabs"><button data-go="map" ${a==='map'?'aria-current="page"':''}>${icon('map')}Map</button><button data-go="profile" ${a==='profile'?'aria-current="page"':''}>${icon('cupcake')}Profile</button></nav>`;
+function bindTabs(){app.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));}
+function artSlot(key,label){
+  const src=ART.story[key];
+  if(src)return `<img src="${src}" alt="${label}">`;
+  return storySVG(key);
+}
+
+/* ===== Story ===== */
+function renderStory(){
+  const seq=storyMode==='intro'?STORY:storyMode==='finale'
+    ?FINALE.map(s=>s.art==='theend'?{...s,text:`You delivered every cupcake with a rating of ${P.rating} and ${Object.values(P.stars).reduce((a,b)=>a+b,0)} of 21 stars. Keep playing to collect them all!`}:s)
+    :[{art:'chapter',text:'Yay! You unlocked the next chapter…',cta:'Go!'}];
+  const s=seq[storyIdx];
+  app.innerHTML=`<section class="screen"><div class="story">
+    <div class="panel">${artSlot(s.art,s.text)}</div>
+    <p class="caption">${s.text}</p>
+    ${seq.length>1?`<div class="pager">${seq.map((_,i)=>`<i class="${i===storyIdx?'on':''}"></i>`).join('')}</div>`:''}
+    <div class="row" style="justify-content:center;gap:12px">
+      ${storyMode!=='chapter'&&storyIdx<seq.length-1?`<button class="btn alt" id="skip">Skip</button>`:''}
+      <button class="btn" id="next">${s.cta||'Next'}</button></div></div></section>`;
+  const done=()=>{if(storyMode==='intro')P.seenIntro=true;else P.seenEnding=true;save();storyIdx=0;storyMode='intro';go('map');};
+  document.getElementById('next').onclick=()=>{if(storyIdx<seq.length-1){storyIdx++;renderStory();}else done();};
+  document.getElementById('skip')?.addEventListener('click',done);
+}
+
+/* ===== Map ===== */
+function renderMap(){
+  const cur=currentLevel();
+  const nr=nextReward();
+  const prevR=nr?Math.max(400,allRewards().filter(r=>r.rating<nr.rating).map(r=>r.rating).pop()||400):0;
+  const pct=nr?Math.max(4,Math.min(100,(P.best-prevR)/(nr.rating-prevR)*100)):100;
+  const tg=P.todayKey===today()?P.todayGames:0;
+  const pts=LEVELS.map(l=>[l.x,l.y]);
+  let d=`M${pts[0][0]} ${pts[0][1]+14} L${pts[0][0]} ${pts[0][1]}`;
+  for(let i=1;i<pts.length;i++){const[a,b]=pts[i-1],[c,e]=pts[i];d+=` C${a} ${(b+e)/2} ${c} ${(b+e)/2} ${c} ${e}`;}
+  app.innerHTML=`<section class="screen">
+    <div class="hud">
+      <div class="avatar">${avatarSVG(P)}</div>
+      <div class="grow">
+        <div class="row" style="justify-content:space-between"><h1 style="font-size:30px">${esc(P.name)}</h1><span class="chip" title="Days in a row">${icon('candle')} ${P.dayStreak}</span></div>
+        <div class="row" style="gap:8px;margin-top:4px"><span class="chip">${icon('star')} ${P.rating}</span><span class="chip">Lv ${xpLevel(P.xp)}</span></div>
+        <div class="bar" style="margin-top:8px" aria-label="Experience"><i style="width:${(P.xp%250)/2.5}%"></i></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px;padding:12px 14px">
+      ${nr?`<div class="row" style="justify-content:space-between"><b>Next reward: ${nr.name}</b><small class="muted">at ${nr.rating}</small></div>
+      <div class="bar pink" style="margin-top:6px"><i style="width:${pct}%"></i></div>`:`<b>You unlocked every reward. Queen baker!</b>`}
+      <div class="goal"><b class="grow">Daily goal: play 3 games</b><div class="dots">${[0,1,2].map(i=>`<span class="${i<tg?'on':''}"></span>`).join('')}</div></div>
+    </div>
+    <div class="map" role="list" aria-label="Delivery route" style="background-image:${sceneURI('map').replace(/"/g,"&quot;")}">
+      <svg class="road" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" fill="none" stroke="#FBF3E6" stroke-width="14" vector-effect="non-scaling-stroke" stroke-linecap="round"/><path d="${d}" fill="none" stroke="#D98FA6" stroke-width="3" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-dasharray="6 9"/></svg>
+      ${LEVELS.map((l,i)=>{const open=unlockedLevel(i),st=P.stars[l.id]||0;
+        return `<button role="listitem" class="node ${open?'':'locked'} ${i===cur?'current':''}" style="left:${l.x}%;top:${l.y}%" data-lv="${i}" aria-label="${l.place}, ${l.foes} versus cupcakes${open?', '+st+' stars':', locked'}">
+          <span class="disc" style="background-image:${sceneURI(l.id).replace(/"/g,"&quot;")}">${ART.levels[l.id].icon?`<img src="${ART.levels[l.id].icon}" alt="" style="width:100%;height:100%;object-fit:contain">`:pieceSVG(l.theme,'K')}</span>${open?'':`<span class="lock">${icon('lock')}</span>`}
+          <span class="lab">${l.place}</span>
+          <span class="stars" aria-hidden="true">${starRow(st)}</span></button>`;}).join('')}
+    </div>
+    <p class="muted" style="text-align:center;font-weight:700;margin:10px 0 0">Tap a stop to play. Win to unlock the next one.</p>
+  </section>${tabs('map')}`;
+  bindTabs();
+  app.querySelectorAll('.node').forEach(n=>n.onclick=()=>{const i=+n.dataset.lv;if(!unlockedLevel(i)){toast('Win the stop before this one to open it.');return;}openLesson(i);});
+}
+
+/* ===== Lesson card ===== */
+function openLesson(i){
+  const l=LEVELS[i],ls=l.lesson;setLevelStyle(l.id);
+  const cells=Array.from({length:25},(_,k)=>ls.mini.p.includes(k)?`<i class="p">${pieceSVG('cupcake',ls.role,{flavor:P.flavor})}</i>`:ls.mini.m.includes(k)?'<i class="m"></i>':'<i></i>').join('');
+  modal(`<div class="lesson"><h2>${l.place}</h2>
+    <p style="text-align:center;margin:4px 0 0;font-weight:800">${cap(l.foes)} block the road!</p>
+    <div class="pieces"><div>${pieceSVG('cupcake','K',{flavor:P.flavor,sprinkles:P.acc==='sprinkles',golden:P.acc==='golden'})}You</div><span class="vsx">vs</span><div>${pieceSVG(l.theme,'K')}${cap(l.foes)}</div></div>
+    <div class="card" style="background:var(--mint-soft)"><h3 style="font-size:26px">Lesson: ${ls.title}</h3>
+      <div class="mini" aria-hidden="true">${cells}</div>
+      <p style="margin:6px 0 0;font-weight:600">${ls.tip}</p></div>
+    <p class="muted" style="text-align:center;margin:10px 0 0;font-weight:700">Opponent strength ${l.rating} · Best: ${P.stars[l.id]?starRow(P.stars[l.id]):'not played yet'}</p>
+    <div class="stack"><button class="btn" id="play">Let’s win!</button><button class="btn alt" id="close">Not now</button></div></div>`);
+  document.getElementById('play').onclick=()=>startGame(i);
+  document.getElementById('close').onclick=()=>{closeModal();setLevelStyle(null);};
+}
+
+/* ===== Game ===== */
+let G=null;
+function startGame(i){
+  G={lv:i,s:initState(),hist:[],sel:-1,moves:[],last:null,hint:null,hints:3,usedHelp:false,lostQueen:false,thinking:false,over:false,msg:{t:`Your move! You play the cupcakes at the bottom. ${LEVELS[i].lesson.tip}`,k:''},capW:[],capB:[],ply:0,anim:null};
+  closeModal();go('game');
+}
+const sqName=i=>'abcdefgh'[i&7]+(8-(i>>3));
+function pieceHTML(p){
+  if(!p)return'';
+  const l=LEVELS[G.lv],o={symbol:P.settings.symbols};
+  if(p[0]==='w')return pieceSVG('cupcake',p[1],{...o,flavor:P.flavor,sprinkles:P.acc==='sprinkles',golden:P.acc==='golden'});
+  return pieceSVG(l.theme,p[1],o);
+}
+function renderGame(){
+  const l=LEVELS[G.lv],s=G.s,chk=inCheck(s)?kingSq(s.b,s.turn):-1;
+  const targets=new Map(G.moves.map(m=>[m.to,m]));
+  let cells='';
+  for(let i=0;i<64;i++){
+    const r=i>>3,c=i&7,p=s.b[i],light=(r+c)%2===0;
+    const cls=['sq',light?'l':'d'];
+    if(G.last&&(G.last.from===i||G.last.to===i))cls.push('last');
+    if(G.sel===i)cls.push('sel');
+    if(G.hint&&(G.hint.from===i||G.hint.to===i))cls.push('hint');
+    if(i===chk)cls.push('check');
+    const t=targets.get(i);
+    const mark=t&&P.settings.dots?(p||t.ep?'<span class="ring"></span>':'<span class="dot"></span>'):'';
+    const who=p?(p[0]==='w'?'your ':'their ')+ROLES[p[1]].name.toLowerCase():'empty';
+        cells+=`<button class="${cls.join(' ')}" data-sq="${i}" aria-label="${sqName(i)}, ${who}${t?', can move here':''}">${c===7?`<span class="coord r">${8-r}</span>`:''}${r===7?`<span class="coord f">${'abcdefgh'[c]}</span>`:''}${mark}<span class="pc ${G.anim===i?'land':''}">${pieceHTML(p)}</span></button>`;
+  }
+  const tray=(arr,col)=>arr.map(p=>pieceHTML(col+p)).join('');
+  app.innerHTML=`<section class="screen" style="padding-bottom:24px">
+    <div class="gbar"><button class="iconbtn" id="back" aria-label="Back to map">${icon('back','ic big')}</button>
+      <div class="gtitle"><div class="w1">${l.place}</div><div class="w2">${l.foes} vs cupcakes · strength ${l.rating}</div></div>
+      <span class="chip">${icon('star')} ${P.rating}</span></div>
+    <div class="tray"><span class="who">${cap(l.foes)}</span>${tray(G.capW,'w')}</div>
+    <div class="boardwrap"><div class="board" id="board">${cells}</div>${G.thinking?`<div class="thinking">${cap(l.foes)} are thinking…</div>`:''}</div>
+    <div class="tray" style="margin-top:12px"><span class="who">Cupcakes</span>${tray(G.capB,'b')}</div>
+    <div class="coach" aria-live="polite">${coachFace}<div class="bubble ${G.msg.k}">${G.msg.t}</div></div>
+    <div class="controls">
+      <button id="hint" ${G.hints&&!G.over&&!G.thinking?'':'disabled'}><span>${icon('lantern')}</span>Hint (${G.hints})</button>
+      <button id="undo" ${G.hist.length&&!G.over&&!G.thinking?'':'disabled'}><span>${icon('undo')}</span>Take back</button>
+      <button id="guide"><span>${icon('book')}</span>Pieces</button>
+      <button id="resign" ${G.over?'disabled':''}><span>${icon('flag')}</span>Give up</button>
+    </div></section>`;
+  G.anim=null;
+  document.getElementById('back').onclick=()=>{if(!G.over&&G.hist.length)askConfirm('Leave this game?','It will count as a loss.','Leave game',()=>finish('loss',true));else go('map');};
+  document.getElementById('board').onclick=e=>{const b=e.target.closest('[data-sq]');if(b)tap(+b.dataset.sq);};
+  document.getElementById('hint').onclick=giveHint;
+  document.getElementById('undo').onclick=undo;
+  document.getElementById('guide').onclick=openGuide;
+  document.getElementById('resign').onclick=()=>{if(G.thinking)return;askConfirm('Give up this game?','It will count as a loss, but you can try again right away.','Give up',()=>finish('loss'));};
+}
+function say(t,k=''){G.msg={t,k};}
+function tap(i){
+  if(G.over||G.thinking||G.s.turn!=='w')return;
+  const p=G.s.b[i];
+  const mv=G.moves.find(m=>m.to===i);
+  if(G.sel>=0&&mv){playerMove(mv);return;}
+  if(p&&p[0]==='w'){
+    G.sel=i;G.moves=legal(G.s).filter(m=>m.from===i);
+    const R=ROLES[p[1]];
+    say(`<b>${R.name}</b>: ${R.how}${G.moves.length?'':' This one has no moves right now.'}`);
+  }else if(p){
+    const R=ROLES[p[1]];G.sel=-1;G.moves=[];
+    say(`That is their <b>${R.name.toLowerCase()}</b>. ${R.how}`);
+  }else{G.sel=-1;G.moves=[];}
+  renderGame();
+}
+function applyMove(m){
+  const mover=G.s.b[m.from];
+  G.hist.push({s:G.s,last:G.last,capW:G.capW.slice(),capB:G.capB.slice(),lostQueen:G.lostQueen});
+  const n=make(G.s,m);
+  if(n.cap){if(mover[0]==='w')G.capB.push(n.cap[1]);else{G.capW.push(n.cap[1]);if(n.cap[1]==='Q')G.lostQueen=true;}}
+  G.s=n;G.last=m;G.sel=-1;G.moves=[];G.hint=null;G.ply++;G.anim=m.to;
+  return n;
+}
+function playerMove(m){
+  const n=applyMove(m),l=LEVELS[G.lv];
+  if(endCheck())return;
+  // coach feedback
+  let msg=null;
+  if(n.cap)msg=[`Yum! You captured their ${ROLES[n.cap[1]].name.toLowerCase()}.`,'good'];
+  if(m.castle)msg=['Castled! Your king is tucked away and your rook is awake.','good'];
+  if(m.promo)msg=['Your pawn reached the end and became a queen!','good'];
+  if(P.settings.coach){
+    const p=n.b[m.to];
+    const atk=attacked(n.b,m.to,'b'),def=attacked(n.b,m.to,'w');
+    const pawnAtk=atk&&p[1]!=='P'&&pawnHits(n.b,m.to);
+    if(atk&&(!def||pawnAtk))msg=[`Careful: your ${ROLES[p[1]].name.toLowerCase()} on ${sqName(m.to)} can be captured${def?' by a pawn':' and nobody protects it'}. You can take the move back.`,'warn'];
+  }
+  if(inCheck(n))msg=[`Check! Their king is under attack.`,'good'];
+  say(...(msg||[`Nice. Now the ${l.foes} move.`]));
+  G.thinking=true;renderGame();
+  setTimeout(aiMove,450);
+}
+function pawnHits(b,sq){const r=sq>>3,c=sq&7;return [-1,1].some(dc=>inB(r-1,c+dc)&&b[(r-1)*8+c+dc]==='bP');}
+function aiMove(){
+  if(!G||G.over)return;
+  const m=bestMove(G.s,LEVELS[G.lv].ai);
+  G.thinking=false;
+  if(!m){endCheck();return;}
+  const n=applyMove(m);
+  if(endCheck())return;
+  if(inCheck(n))say('Check! Your king is under attack. Move it, block the attack, or capture the attacker.','warn');
+  else if(n.cap)say(`They captured your ${ROLES[n.cap[1]].name.toLowerCase()}. Look for a way to win something back.`,'warn');
+  else if(G.msg.k!=='warn'||G.ply%2===0)say('Your turn. Tap a cupcake to see where it can go.');
+  renderGame();
+}
+function endCheck(){
+  const s=G.s,ms=legal(s);
+  if(!ms.length){
+    if(inCheck(s))finish(s.turn==='b'?'win':'loss');else finish('draw','stalemate');
+    return true;
+  }
+  if(insufficient(s.b)){finish('draw','not enough pieces left');return true;}
+  if(s.half>=100||G.ply>=240){finish('draw','too many moves without progress');return true;}
+  return false;
+}
+function giveHint(){
+  if(!G.hints||G.over)return;
+  G.hints--;G.usedHelp=true;
+  const m=bestMove(G.s,{depth:2,noise:0});
+  G.hint=m;G.sel=m.from;G.moves=legal(G.s).filter(x=>x.from===m.from);
+  const p=G.s.b[m.from];
+  say(`Try your <b>${ROLES[p[1]].name.toLowerCase()}</b> from ${sqName(m.from)} to ${sqName(m.to)}${G.s.b[m.to]?' and capture':''}.`,'good');
+  renderGame();
+}
+function undo(){
+  if(!G.hist.length||G.thinking)return;
+  let h=G.hist.pop();
+  if(h.s.turn==='b'&&G.hist.length)h=G.hist.pop();
+  Object.assign(G,{s:h.s,last:h.last,capW:h.capW,capB:h.capB,lostQueen:h.lostQueen,sel:-1,moves:[],hint:null,usedHelp:true});
+  say('Move taken back. Have another look!');renderGame();
+}
+function openGuide(){
+  const l=LEVELS[G?G.lv:0];
+  modal(`<h2>Who’s who</h2><p class="muted" style="text-align:center;margin:4px 0 0;font-weight:700">Same jobs, different looks. Each piece’s hat tells you what it is.</p>
+  <div class="guide">${'KQRBNP'.split('').map(r=>`<div class="g"><div class="pp">${pieceSVG('cupcake',r,{flavor:P.flavor,symbol:true})}${pieceSVG(l.theme,r,{symbol:true})}</div><div><b>${ROLES[r].name}</b><p>${ROLES[r].how}</p></div></div>`).join('')}</div>
+  <div class="stack"><button class="btn" id="close">Got it</button></div>`);
+  document.getElementById('close').onclick=closeModal;
+}
+
+/* ===== Results, rating, rewards ===== */
+function finish(result,why){
+  G.over=true;G.thinking=false;
+  const l=LEVELS[G.lv],before=P.rating,beforeBest=P.best;
+  const exp=1/(1+Math.pow(10,(l.rating-P.rating)/400)),k=P.games<20?40:24;
+  const score=result==='win'?1:result==='draw'?.5:0;
+  P.rating=Math.max(100,Math.round(P.rating+k*(score-exp)));
+  P.best=Math.max(P.best,P.rating);
+  P.games++;P[result==='win'?'wins':result==='draw'?'draws':'losses']++;
+  P.winStreak=result==='win'?P.winStreak+1:0;P.bestWinStreak=Math.max(P.bestWinStreak,P.winStreak);
+  P.history=[...P.history,P.rating].slice(-30);
+  // stars
+  let stars=0;if(result==='win'){stars=1;if(!G.usedHelp)stars++;if(!G.lostQueen)stars++;}
+  const prevStars=P.stars[l.id]||0,firstClear=result==='win'&&!prevStars;
+  if(stars>prevStars)P.stars[l.id]=stars;
+  // xp + daily
+  let xp=result==='win'?100:result==='draw'?50:25;xp+=stars*20;
+  const t=today();
+  if(P.lastDay!==t){const y=new Date(Date.now()-864e5).toISOString().slice(0,10);P.dayStreak=P.lastDay===y?P.dayStreak+1:1;P.lastDay=t;}
+  if(P.todayKey!==t){P.todayKey=t;P.todayGames=0;}
+  P.todayGames++;let goalHit=false;if(P.todayGames===3){xp+=75;goalHit=true;}
+  P.xp+=xp;
+  const fresh=allRewards().filter(r=>r.rating<=P.best&&!P.unlocked.includes(r.id));
+  fresh.forEach(r=>P.unlocked.push(r.id));
+  save();
+  if(why===true){go('map');return;}
+  const d=P.rating-before;
+  const title=result==='win'?'You won!':result==='draw'?'It’s a draw':'Not this time';
+  const sub=result==='win'?`Checkmate! The ${l.foes} step aside.`:result==='draw'?`Draw: ${why}.`:`Tip: ${TIPS[Math.floor(Math.random()*TIPS.length)]}`;
+  renderGame();
+  modal(`<h2>${title}</h2><p style="text-align:center;margin:4px 0 0;font-weight:700">${sub}</p>
+    <div class="bigstars" aria-label="${stars} of 3 stars">${[0,1,2].map(i=>`<span class="${i<stars?'on':''}">${icon(i<stars?'star':'starOff','bs')}</span>`).join('')}</div>
+    ${result==='win'?`<p class="muted" style="text-align:center;margin:0;font-size:14px;font-weight:700">${icon('star')} win · ${icon('star')} no hints or take-backs · ${icon('star')} kept your queen</p>`:''}
+    <div class="card" style="margin-top:12px;padding:8px 14px">
+      <div class="stat"><span>Rating</span><span>${P.rating} <span class="delta ${d>=0?'up':'down'}">${d>=0?'+':''}${d}</span></span></div>
+      <div class="stat"><span>XP earned</span><span>+${xp}${goalHit?' (daily goal!)':''}</span></div>
+      <div class="stat"><span>Win streak</span><span>${P.winStreak}</span></div>
+    </div>
+    ${fresh.map(r=>`<div class="unlock"><div class="thumb">${avatarSVG({...P,flavor:r.kind==='flavor'?r.id:P.flavor},r.kind==='acc'?r.id:'none')}</div><div><b class="hand" style="font-size:24px">New ${r.kind==='flavor'?'character':'accessory'}!</b><br>${r.name}. Wear it from your profile.</div></div>`).join('')}
+    <div class="stack">
+      ${result==='win'&&G.lv<LEVELS.length-1?`<button class="btn" id="nextch">Next chapter</button>`:''}
+      ${result==='win'&&G.lv===LEVELS.length-1&&(firstClear||!P.seenEnding)?`<button class="btn" id="finale">Deliver the cupcakes</button>`:''}
+      <button class="btn ${result==='win'?'alt':''}" id="again">${result==='win'?'Play again for more stars':'Try again'}</button>
+      <button class="btn alt" id="tomap">Back to map</button></div>`);
+  if(result==='win'||fresh.length)confetti();
+  document.getElementById('again').onclick=()=>startGame(G.lv);
+  document.getElementById('tomap').onclick=()=>{closeModal();go('map');};
+  document.getElementById('nextch')?.addEventListener('click',()=>{const nx=G.lv+1;closeModal();if(firstClear){pendingLesson=nx;storyMode='chapter';storyIdx=0;go('story');}else openLesson(nx);});
+  document.getElementById('finale')?.addEventListener('click',()=>{closeModal();storyMode='finale';storyIdx=0;go('story');});
+}
+let pendingLesson=null;
+const _renderStory=renderStory;
+renderStory=function(){_renderStory();const n=document.getElementById('next');if(storyMode==='chapter'&&pendingLesson!==null){n.onclick=()=>{const i=pendingLesson;pendingLesson=null;storyMode='intro';go('map');openLesson(i);};}if(storyMode==='finale'&&storyIdx===FINALE.length-1){n.onclick=()=>{P.seenEnding=true;save();storyIdx=0;storyMode='intro';go('map');confetti();};}};
+
+/* ===== Profile ===== */
+function renderProfile(){
+  const h=P.history,mn=Math.min(...h)-20,mx=Math.max(...h)+20;
+  const pts=h.map((v,i)=>`${(i/(Math.max(1,h.length-1))*100).toFixed(1)},${(100-(v-mn)/(mx-mn)*100).toFixed(1)}`).join(' ');
+  const totalStars=Object.values(P.stars).reduce((a,b)=>a+b,0);
+  const item=(id,r,kind)=>{const has=P.unlocked.includes(id),on=kind==='flavor'?P.flavor===id:P.acc===id;
+    return `<button class="item ${has?'':'locked'} ${on?'on':''}" data-kind="${kind}" data-id="${id}" ${has?'':'aria-disabled="true"'}>${avatarSVG({...P,flavor:kind==='flavor'?id:P.flavor},kind==='acc'?id:'none')}${r.name}${has?(on?'<small>Wearing</small>':''):`<small>${icon('lock')} at ${r.rating}</small>`}</button>`;};
+  app.innerHTML=`<section class="screen">
+    <div class="prof-head"><div class="avatar">${avatarSVG(P)}</div>
+      <label class="sr" for="nm" style="position:absolute;left:-9999px">Your name</label>
+      <input id="nm" value="${esc(P.name)}" maxlength="16" autocomplete="off">
+      <div class="row"><span class="chip">Level ${xpLevel(P.xp)}</span><span class="chip">${icon('candle')} ${P.dayStreak} day${P.dayStreak===1?'':'s'}</span><span class="chip">${icon('star')} ${totalStars}/21</span></div></div>
+    <div class="bignum"><div><b>${P.rating}</b><small>Rating</small></div><div><b>${P.best}</b><small>Best</small></div><div><b>${P.wins}-${P.losses}-${P.draws}</b><small>W-L-D</small></div></div>
+    <div class="card"><div class="row" style="justify-content:space-between"><b>Rating over time</b><small class="muted">best win streak ${P.bestWinStreak}</small></div>
+      <svg class="spark" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Rating history from ${h[0]} to ${h[h.length-1]}"><polyline points="${pts}" fill="none" stroke="var(--pink)" stroke-width="3" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg></div>
+    <div class="section"><h3>Characters</h3><div class="collection">${Object.entries(FLAVORS).map(([k,v])=>item(k,v,'flavor')).join('')}</div></div>
+    <div class="section"><h3>Accessories</h3><div class="collection">${Object.entries(ACCS).map(([k,v])=>item(k,v,'acc')).join('')}</div></div>
+    <div class="section"><h3>Learning helpers</h3><div class="card" style="padding:4px 14px">
+      <label class="toggle">Show where pieces can move<input type="checkbox" data-set="dots" ${P.settings.dots?'checked':''}></label>
+      <label class="toggle">Show chess symbols on pieces<input type="checkbox" data-set="symbols" ${P.settings.symbols?'checked':''}></label>
+      <label class="toggle" style="border:0">Coach warns about risky moves<input type="checkbox" data-set="coach" ${P.settings.coach?'checked':''}></label></div></div>
+    <div class="stack"><button class="btn alt" id="replay">Watch the story again</button>${P.stars.bakery?`<button class="btn alt" id="ending">Watch the ending</button>`:''}<button class="btn alt" id="reset">Reset progress</button></div>
+  </section>${tabs('profile')}`;
+  bindTabs();
+  const nm=document.getElementById('nm');nm.onchange=()=>{P.name=nm.value.trim()||'Cupcake';save();};
+  app.querySelectorAll('.item').forEach(b=>b.onclick=()=>{const{kind,id}=b.dataset;
+    if(!P.unlocked.includes(id)){toast(`Reach a rating of ${(kind==='flavor'?FLAVORS:ACCS)[id].rating} to unlock this.`);return;}
+    if(kind==='flavor')P.flavor=id;else P.acc=id;save();renderProfile();});
+  app.querySelectorAll('[data-set]').forEach(c=>c.onchange=()=>{P.settings[c.dataset.set]=c.checked;save();});
+  document.getElementById('replay').onclick=()=>{storyMode='intro';storyIdx=0;go('story');};
+  document.getElementById('ending')?.addEventListener('click',()=>{storyMode='finale';storyIdx=0;go('story');});
+  document.getElementById('reset').onclick=()=>askConfirm('Reset all progress?','This erases your rating, stars and rewards.','Erase progress',()=>{const s=P.settings;P={...blank(),settings:s,seenIntro:true};save();renderProfile();});
+}
+
+/* ===== Helpers ===== */
+function modal(html){closeModal();const d=document.createElement('div');d.className='scrim';d.innerHTML=`<div class="modal" role="dialog" aria-modal="true">${html}</div>`;document.body.appendChild(d);d.querySelector('button')?.focus();}
+function askConfirm(title,body,yes,onYes){
+  modal(`<h2>${title}</h2><p style="text-align:center;margin:8px 0 0;font-weight:600">${body}</p><div class="stack"><button class="btn" id="cfYes">${yes}</button><button class="btn alt" id="cfNo">Keep playing</button></div>`);
+  document.getElementById('cfNo').onclick=closeModal;
+  document.getElementById('cfYes').onclick=()=>{closeModal();onYes();};
+}
+function closeModal(){document.querySelectorAll('.scrim').forEach(x=>x.remove());}
+function toast(t){document.querySelector('.toast')?.remove();const d=document.createElement('div');d.className='toast';d.setAttribute('role','status');d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2200);}
+function confetti(){const c=document.createElement('div');c.className='confetti';const cols=['#F2B6C6','#E98FA5','#FBF3E6','#F4E3A1','#D98FA6'];
+  for(let i=0;i<50;i++){const s=document.createElement('i');s.style.left=Math.random()*100+'%';s.style.background=cols[i%5];s.style.animationDelay=Math.random()*.5+'s';s.style.animationDuration=1.4+Math.random()+'s';c.appendChild(s);}
+  document.body.appendChild(c);setTimeout(()=>c.remove(),3000);}
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cap=s=>s[0].toUpperCase()+s.slice(1);
+render();
+</script>
+</body></html>
