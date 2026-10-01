@@ -4,8 +4,6 @@
 
 CupChess is made for people who have never played chess before. It teaches the rules step by step and helps you while you play. It also gives you reasons to come back every day: ratings to climb, stars to collect, and new characters and accessories to unlock.
 
-▶️ **Play it:** `https://YOUR-USERNAME.github.io/cupchess/`
-
 ---
 
 ## The story
